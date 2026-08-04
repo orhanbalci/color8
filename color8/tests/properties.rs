@@ -171,6 +171,101 @@ proptest! {
 }
 
 // ---------------------------------------------------------------------------
+// blend / nblend
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn blend_hits_both_endpoints_exactly(a in any_crgb(), b in any_crgb()) {
+        // This is why color8 uses lib8tion's full-range blend8 rather than
+        // its rounding one: at amount 255 the result must be exactly `b`.
+        prop_assert_eq!(color8::blend(a, b, 0), a);
+        prop_assert_eq!(color8::blend(a, b, 255), b);
+    }
+
+    #[test]
+    fn blend_stays_between_its_endpoints(a in any_crgb(), b in any_crgb(), amount in any::<u8>()) {
+        let r = color8::blend(a, b, amount);
+        for (got, x, y) in [(r.r, a.r, b.r), (r.g, a.g, b.g), (r.b, a.b, b.b)] {
+            prop_assert!(
+                got >= x.min(y) && got <= x.max(y),
+                "blend result {} escaped [{}, {}]", got, x.min(y), x.max(y)
+            );
+        }
+    }
+
+    #[test]
+    fn blend_of_identical_colors_is_that_color(a in any_crgb(), amount in any::<u8>()) {
+        prop_assert_eq!(color8::blend(a, a, amount), a);
+    }
+
+    #[test]
+    fn nblend_agrees_with_blend(a in any_crgb(), b in any_crgb(), amount in any::<u8>()) {
+        let mut mutated = a;
+        color8::nblend(&mut mutated, b, amount);
+        prop_assert_eq!(mutated, color8::blend(a, b, amount));
+    }
+
+    #[test]
+    fn nblend_slice_is_pointwise_nblend(
+        a in prop::collection::vec(any_crgb(), 0..64),
+        b in prop::collection::vec(any_crgb(), 0..64),
+        amount in any::<u8>(),
+    ) {
+        let mut slice = a.clone();
+        color8::nblend_slice(&mut slice, &b, amount);
+
+        // Only the overlapping prefix is touched; the tail is left alone.
+        let overlap = a.len().min(b.len());
+        for i in 0..overlap {
+            prop_assert_eq!(slice[i], color8::blend(a[i], b[i], amount), "pixel {}", i);
+        }
+        for i in overlap..a.len() {
+            prop_assert_eq!(slice[i], a[i], "untouched tail pixel {}", i);
+        }
+    }
+
+    #[test]
+    fn blend_hsv_hits_both_endpoints(a in any_chsv(), b in any_chsv(), dir in any_direction()) {
+        prop_assert_eq!(color8::blend_hsv(a, b, 0, dir), a);
+        prop_assert_eq!(color8::blend_hsv(a, b, 255, dir), b);
+    }
+
+    #[test]
+    fn blend_hsv_forward_and_backward_agree_at_the_endpoints(a in any_chsv(), b in any_chsv()) {
+        // Direction only decides which way around the wheel to travel, so
+        // it cannot change where the travel starts or ends.
+        for amount in [0u8, 255] {
+            let f = color8::blend_hsv(a, b, amount, GradientDirection::Forward);
+            let bw = color8::blend_hsv(a, b, amount, GradientDirection::Backward);
+            prop_assert_eq!(f, bw, "amount {}", amount);
+        }
+    }
+
+    #[test]
+    fn fade_using_color_never_brightens(
+        leds in prop::collection::vec(any_crgb(), 0..64),
+        mask in any_crgb(),
+    ) {
+        let mut faded = leds.clone();
+        color8::fade_using_color(&mut faded, mask);
+        for (before, after) in leds.iter().zip(faded.iter()) {
+            prop_assert!(after.r <= before.r && after.g <= before.g && after.b <= before.b);
+        }
+    }
+
+    #[test]
+    fn fade_using_color_with_white_mask_is_the_identity(
+        leds in prop::collection::vec(any_crgb(), 0..64),
+    ) {
+        // scale8's full-scale factor is 255, so a white mask round-trips.
+        let mut faded = leds.clone();
+        color8::fade_using_color(&mut faded, Crgb::new(255, 255, 255));
+        prop_assert_eq!(faded, leds);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Invariant properties — algebraic facts about the port itself
 // ---------------------------------------------------------------------------
 

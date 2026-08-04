@@ -7,6 +7,11 @@ array fill/gradient helpers that FastLED's effects are built on.
 Built on [`lib8tion`](https://github.com/orhanbalci/lib8tion) for the
 underlying fixed-point 8-bit math.
 
+> **Build note:** the workspace `Cargo.toml` currently carries a `[patch]`
+> pointing `lib8tion` at a local checkout, because `blend` needs
+> `lib8tion::blend8_8bit_full_range`, which is not yet on lib8tion's
+> `master`. Drop the patch once that change is pushed.
+
 ## Which FastLED?
 
 The port targets **FastLED 3.6.0** — the last release before upstream moved
@@ -29,9 +34,14 @@ well-meaning future "fix" can't silently diverge.
 | `fill_solid`, `fill_rainbow`, `fill_rainbow_circular` | ✅ | properties |
 | `fill_gradient_rgb` (2/3/4-stop, + range) | ✅ | vs. C across lengths |
 | `fill_gradient` HSV (2/3/4-stop, + direction) | ✅ | properties |
-| `CRGBPalette16/256`, `ColorFromPalette` | ⬜ | — |
-| `blur1d`, `blur2d` | ⬜ | — |
-| gamma + color-correction constants | ⬜ | — |
+| `blend`/`nblend` (RGB + HSV directional, scalar + slice) | ✅ | exhaustive vs. C |
+| `fadeUsingColor`, `fade_video`/`fade_raw`/`nscale8_raw` | ✅ | exhaustive vs. C |
+| `HeatColor` | ⬜ | — |
+| Palettes (CRGB/CHSV × 16/32/256) + `ColorFromPalette` | ⬜ | — |
+| Gradient-palette format, `fill_palette*`, presets | ⬜ | — |
+| `blur1d` | ⬜ | — |
+| `blur2d` | ⬜ | needs an `XY` mapping abstraction |
+| gamma + color-correction constants | ⬜ | needs a `pow` strategy |
 
 Not yet ported from `CRGB`: ordering operators, `getLuma`/`getAverageLight`,
 `maximizeBrightness`, `lerp8`/`lerp16`, `getParity`/`setParity`, and the

@@ -362,3 +362,32 @@ pub fn nscale8_video(leds: &mut [Crgb], scale: u8) {
         led.nscale8_video(scale);
     }
 }
+
+/// `fade_video` — FastLED's other name for [`fade_light_by`]. Both are
+/// `nscale8_video(255 - fade_by)`.
+#[inline]
+pub fn fade_video(leds: &mut [Crgb], fade_by: u8) {
+    fade_light_by(leds, fade_by);
+}
+
+/// `fade_raw` — FastLED's other name for [`fade_to_black_by`]. Both are
+/// `nscale8(255 - fade_by)`.
+#[inline]
+pub fn fade_raw(leds: &mut [Crgb], fade_by: u8) {
+    fade_to_black_by(leds, fade_by);
+}
+
+/// `nscale8_raw` — FastLED's other name for [`nscale8`].
+#[inline]
+pub fn nscale8_raw(leds: &mut [Crgb], scale: u8) {
+    nscale8(leds, scale);
+}
+
+/// Fades every pixel by scaling each channel with the matching channel of
+/// `colormask`, so the strip fades *through* a color rather than straight
+/// to black. A mask of `(255, 0, 0)` fades everything toward red.
+pub fn fade_using_color(leds: &mut [Crgb], colormask: Crgb) {
+    for led in leds.iter_mut() {
+        led.nscale8_rgb(colormask);
+    }
+}

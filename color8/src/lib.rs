@@ -16,15 +16,20 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+pub mod blend;
 pub mod fill;
 pub mod hsv;
 pub mod rgb;
 
+pub use blend::{
+    blend, blend_hsv, blend_hsv_slice, blend_slice, nblend, nblend_hsv, nblend_hsv_slice,
+    nblend_slice,
+};
 pub use fill::{
-    FromHsv, GradientDirection, fade_light_by, fade_to_black_by, fill_gradient,
-    fill_gradient_range, fill_gradient_rgb, fill_gradient_rgb_range, fill_gradient_rgb3,
-    fill_gradient_rgb4, fill_gradient3, fill_gradient4, fill_rainbow, fill_rainbow_circular,
-    fill_solid, nscale8, nscale8_video,
+    FromHsv, GradientDirection, fade_light_by, fade_raw, fade_to_black_by, fade_using_color,
+    fade_video, fill_gradient, fill_gradient_range, fill_gradient_rgb, fill_gradient_rgb_range,
+    fill_gradient_rgb3, fill_gradient_rgb4, fill_gradient3, fill_gradient4, fill_rainbow,
+    fill_rainbow_circular, fill_solid, nscale8, nscale8_raw, nscale8_video,
 };
 pub use hsv::{Chsv, HsvHue, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate};
 pub use rgb::Crgb;

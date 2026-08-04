@@ -213,6 +213,151 @@ fn crgb_scalar_operators_match_reference_exhaustive() {
 }
 
 // ---------------------------------------------------------------------------
+// blend / nblend
+// ---------------------------------------------------------------------------
+
+/// The blend8 variant `nblend` sits on. Pinned separately from `nblend`
+/// itself so that if FastLED's formula and `lib8tion`'s ever drift apart
+/// again, the failure names the primitive rather than the color op.
+#[test]
+fn blend8_full_range_matches_reference_exhaustive() {
+    for a in 0..=255u8 {
+        for b in 0..=255u8 {
+            for amount in 0..=255u8 {
+                assert_eq!(
+                    lib8tion::blend8_8bit_full_range(a, b, amount),
+                    fastled_ref::blend8_360(a, b, amount),
+                    "blend8_8bit_full_range({a},{b},{amount})"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn nblend_rgb_matches_reference_exhaustive() {
+    for x in 0..=255u8 {
+        let e = spread_a(x);
+        for y in 0..=255u8 {
+            let o = spread_b(y);
+            // Sweep amount at every byte value for a subset of color pairs,
+            // and at the boundary values for all of them -- amount == 0 and
+            // 255 are the two early-return paths in the C.
+            for amount in [0u8, 1, 2, 127, 128, 129, 253, 254, 255] {
+                let mut got = crgb(e);
+                color8::nblend(&mut got, crgb(o), amount);
+                assert_eq!(
+                    tuple(got),
+                    fastled_ref::nblend_rgb(e, o, amount),
+                    "nblend({e:?},{o:?},{amount})"
+                );
+            }
+        }
+    }
+
+    // Full amount sweep on a narrower but still channel-distinct set.
+    for amount in 0..=255u8 {
+        for x in [0u8, 1, 63, 127, 128, 200, 254, 255] {
+            let e = spread_a(x);
+            let o = spread_b(x.wrapping_mul(7).wrapping_add(31));
+            let mut got = crgb(e);
+            color8::nblend(&mut got, crgb(o), amount);
+            assert_eq!(
+                tuple(got),
+                fastled_ref::nblend_rgb(e, o, amount),
+                "nblend({e:?},{o:?},{amount})"
+            );
+        }
+    }
+}
+
+#[test]
+fn nblend_hsv_matches_reference_exhaustive() {
+    // Direction codes in TGradientDirectionCode order.
+    let directions = [
+        (color8::GradientDirection::Forward, 0i32),
+        (color8::GradientDirection::Backward, 1),
+        (color8::GradientDirection::Shortest, 2),
+        (color8::GradientDirection::Longest, 3),
+    ];
+
+    for (dir, code) in directions {
+        // Hue is the interesting axis -- the direction logic branches on
+        // the hue delta -- so sweep both hues fully.
+        for eh in 0..=255u8 {
+            for oh in 0..=255u8 {
+                for amount in [0u8, 1, 127, 128, 254, 255] {
+                    let e = Chsv::new(eh, 200, 100);
+                    let o = Chsv::new(oh, 50, 240);
+
+                    let mut got = e;
+                    color8::nblend_hsv(&mut got, o, amount, dir);
+
+                    let want = fastled_ref::nblend_hsv(
+                        (e.hue, e.sat, e.val),
+                        (o.hue, o.sat, o.val),
+                        amount,
+                        code,
+                    );
+                    assert_eq!(
+                        (got.hue, got.sat, got.val),
+                        want,
+                        "nblend_hsv(h={eh}->{oh}, amount={amount}, dir={code})"
+                    );
+                }
+            }
+        }
+
+        // Sat/val carry a wrapping sum of two scale8s, so sweep those too.
+        for es in [0u8, 1, 128, 254, 255] {
+            for os in [0u8, 1, 128, 254, 255] {
+                for ev in [0u8, 1, 128, 254, 255] {
+                    for ov in [0u8, 1, 128, 254, 255] {
+                        for amount in 0..=255u8 {
+                            let e = Chsv::new(37, es, ev);
+                            let o = Chsv::new(211, os, ov);
+
+                            let mut got = e;
+                            color8::nblend_hsv(&mut got, o, amount, dir);
+
+                            let want = fastled_ref::nblend_hsv(
+                                (e.hue, e.sat, e.val),
+                                (o.hue, o.sat, o.val),
+                                amount,
+                                code,
+                            );
+                            assert_eq!(
+                                (got.hue, got.sat, got.val),
+                                want,
+                                "nblend_hsv(sat {es}->{os}, val {ev}->{ov}, \
+                                 amount={amount}, dir={code})"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn fade_using_color_matches_reference_exhaustive() {
+    for x in 0..=255u8 {
+        let c = spread_a(x);
+        for y in 0..=255u8 {
+            let mask = spread_b(y);
+            let mut leds = [crgb(c)];
+            color8::fade_using_color(&mut leds, crgb(mask));
+            assert_eq!(
+                tuple(leds[0]),
+                fastled_ref::fade_using_color(c, mask),
+                "fade_using_color({c:?},{mask:?})"
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // fill_gradient_RGB
 // ---------------------------------------------------------------------------
 

@@ -157,6 +157,46 @@ mod ffi {
             out_g: *mut u8,
             out_b: *mut u8,
         );
+
+        pub fn fl_blend8_360(a: u8, b: u8, amount_of_b: u8) -> u8;
+        #[allow(clippy::too_many_arguments)]
+        pub fn fl_nblend_rgb(
+            er: u8,
+            eg: u8,
+            eb: u8,
+            or_: u8,
+            og: u8,
+            ob: u8,
+            amount_of_overlay: u8,
+            out_r: *mut u8,
+            out_g: *mut u8,
+            out_b: *mut u8,
+        );
+        #[allow(clippy::too_many_arguments)]
+        pub fn fl_nblend_hsv(
+            eh: u8,
+            es: u8,
+            ev: u8,
+            oh: u8,
+            os: u8,
+            ov: u8,
+            amount_of_overlay: u8,
+            direction: i32,
+            out_h: *mut u8,
+            out_s: *mut u8,
+            out_v: *mut u8,
+        );
+        pub fn fl_fade_using_color(
+            r: u8,
+            g: u8,
+            b: u8,
+            fr: u8,
+            fg: u8,
+            fb: u8,
+            out_r: *mut u8,
+            out_g: *mut u8,
+            out_b: *mut u8,
+        );
     }
 }
 
@@ -239,6 +279,75 @@ pub fn crgb_nscale8_rgb(a: Rgb, scale: Rgb) -> Rgb {
     unsafe {
         ffi::fl_crgb_nscale8_rgb(
             a.0, a.1, a.2, scale.0, scale.1, scale.2, &mut r, &mut g, &mut b,
+        );
+    }
+    (r, g, b)
+}
+
+/// FastLED 3.6.0's `blend8` — note this differs from the `blend8` in
+/// current FastLED master (and therefore from `lib8tion::blend8`); see the
+/// note in `shim.c`.
+pub fn blend8_360(a: u8, b: u8, amount_of_b: u8) -> u8 {
+    unsafe { ffi::fl_blend8_360(a, b, amount_of_b) }
+}
+
+/// FastLED's `nblend(CRGB&, const CRGB&, fract8)` C reference.
+pub fn nblend_rgb(existing: Rgb, overlay: Rgb, amount_of_overlay: u8) -> Rgb {
+    let (mut r, mut g, mut b) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_nblend_rgb(
+            existing.0,
+            existing.1,
+            existing.2,
+            overlay.0,
+            overlay.1,
+            overlay.2,
+            amount_of_overlay,
+            &mut r,
+            &mut g,
+            &mut b,
+        );
+    }
+    (r, g, b)
+}
+
+/// FastLED's `nblend(CHSV&, const CHSV&, fract8, TGradientDirectionCode)` C
+/// reference. `direction` uses the `TGradientDirectionCode` enum order:
+/// 0 = FORWARD, 1 = BACKWARD, 2 = SHORTEST, 3 = LONGEST.
+pub fn nblend_hsv(existing: Rgb, overlay: Rgb, amount_of_overlay: u8, direction: i32) -> Rgb {
+    let (mut h, mut s, mut v) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_nblend_hsv(
+            existing.0,
+            existing.1,
+            existing.2,
+            overlay.0,
+            overlay.1,
+            overlay.2,
+            amount_of_overlay,
+            direction,
+            &mut h,
+            &mut s,
+            &mut v,
+        );
+    }
+    (h, s, v)
+}
+
+/// FastLED's `fadeUsingColor` C reference, for a single pixel.
+pub fn fade_using_color(c: Rgb, colormask: Rgb) -> Rgb {
+    let (mut r, mut g, mut b) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_fade_using_color(
+            c.0,
+            c.1,
+            c.2,
+            colormask.0,
+            colormask.1,
+            colormask.2,
+            &mut r,
+            &mut g,
+            &mut b,
         );
     }
     (r, g, b)

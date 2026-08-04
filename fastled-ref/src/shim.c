@@ -2,10 +2,12 @@
 // from FastLED's colorutils sources, used ONLY to differentially test the
 // `color8` Rust crate's port against FastLED's actual behavior.
 //
-// Sources (as of the commit these were pulled from):
-//   - src/hsv2rgb.cpp.hpp  (hsv2rgb_rainbow)
-//   - src/lib8tion.h / platforms/shared/scale8.h  (scale8, scale8_video —
-//     FASTLED_SCALE8_FIXED == 1 branch)
+// Sources — all from the FastLED 3.6.0 tag:
+//   - src/hsv2rgb.cpp        (hsv2rgb_rainbow, hsv2rgb_raw_C, rgb2hsv_approximate)
+//   - src/pixeltypes.h       (CRGB operators)
+//   - src/colorutils.cpp     (fill_gradient_RGB, nblend, fadeUsingColor)
+//   - src/lib8tion/scale8.h  (scale8, scale8_video — FASTLED_SCALE8_FIXED == 1)
+//   - src/lib8tion/math8.h   (qadd8, qsub8, qmul8, blend8 — BLEND8_C branch)
 //
 // The AVR-only assembly fast paths and the `_LEAVING_R1_DIRTY` variants are
 // skipped: on the portable-C path (FASTLED_SCALE8_FIXED == 1), those
@@ -528,4 +530,122 @@ void fl_fill_gradient_rgb2(u16 num_leds, u8 r1, u8 g1, u8 b1, u8 r2, u8 g2, u8 b
         b88 += bdelta87;
         if (i == endpos) break; // guard against u16 wraparound when endpos == 65535
     }
+}
+
+// ---------------------------------------------------------------------------
+// blend8 — src/lib8tion/math8.h (BLEND8_C == 1, FASTLED_SCALE8_FIXED == 1)
+//
+// NOTE: this is NOT the same formula as the `blend8` in current FastLED
+// master (which the `lib8tion` Rust crate ports). 3.6.0 seeds `partial`
+// with `(a << 8) | b` and does no rounding add; master's 8-bit variant
+// seeds with `a << 8` and adds 0x80 before shifting. They disagree — e.g.
+// blend8(0, 255, 255) is 255 here and 254 there. `nblend` sits directly on
+// this, so color8 carries its own transcription rather than reusing
+// lib8tion::blend8.
+// ---------------------------------------------------------------------------
+
+static u8 fl_blend8(u8 a, u8 b, u8 amountOfB) {
+    u16 partial;
+    u8 result;
+
+    partial = (u16)((a << 8) | b); // A*256 + B
+
+    partial = (u16)(partial + (u16)(b * amountOfB));
+    partial = (u16)(partial - (u16)(a * amountOfB));
+
+    result = (u8)(partial >> 8);
+
+    return result;
+}
+
+u8 fl_blend8_360(u8 a, u8 b, u8 amount_of_b) { return fl_blend8(a, b, amount_of_b); }
+
+// ---------------------------------------------------------------------------
+// nblend / blend — src/colorutils.cpp (FastLED 3.6.0)
+// ---------------------------------------------------------------------------
+
+void fl_nblend_rgb(u8 er, u8 eg, u8 eb, u8 or_, u8 og, u8 ob, u8 amount_of_overlay,
+                   u8 *out_r, u8 *out_g, u8 *out_b) {
+    if (amount_of_overlay == 0) {
+        *out_r = er;
+        *out_g = eg;
+        *out_b = eb;
+        return;
+    }
+
+    if (amount_of_overlay == 255) {
+        *out_r = or_;
+        *out_g = og;
+        *out_b = ob;
+        return;
+    }
+
+    *out_r = fl_blend8(er, or_, amount_of_overlay);
+    *out_g = fl_blend8(eg, og, amount_of_overlay);
+    *out_b = fl_blend8(eb, ob, amount_of_overlay);
+}
+
+// direction: 0 = FORWARD_HUES, 1 = BACKWARD_HUES, 2 = SHORTEST_HUES,
+//            3 = LONGEST_HUES (matching the TGradientDirectionCode enum order)
+void fl_nblend_hsv(u8 eh, u8 es, u8 ev, u8 oh, u8 os, u8 ov, u8 amount_of_overlay,
+                   int direction, u8 *out_h, u8 *out_s, u8 *out_v) {
+    if (amount_of_overlay == 0) {
+        *out_h = eh;
+        *out_s = es;
+        *out_v = ev;
+        return;
+    }
+
+    if (amount_of_overlay == 255) {
+        *out_h = oh;
+        *out_s = os;
+        *out_v = ov;
+        return;
+    }
+
+    u8 amount_of_keep = (u8)(255 - amount_of_overlay);
+
+    u8 huedelta8 = (u8)(oh - eh);
+
+    if (direction == 2 /* SHORTEST_HUES */) {
+        direction = 0;
+        if (huedelta8 > 127) {
+            direction = 1;
+        }
+    }
+
+    if (direction == 3 /* LONGEST_HUES */) {
+        direction = 0;
+        if (huedelta8 < 128) {
+            direction = 1;
+        }
+    }
+
+    u8 hue;
+    if (direction == 0 /* FORWARD_HUES */) {
+        hue = (u8)(eh + fl_scale8(huedelta8, amount_of_overlay));
+    } else /* BACKWARD_HUES */ {
+        huedelta8 = (u8)(-huedelta8);
+        hue = (u8)(eh - fl_scale8(huedelta8, amount_of_overlay));
+    }
+
+    // Both terms are uint8_t and the sum is assigned back to a uint8_t
+    // member, so it truncates rather than saturating.
+    u8 sat = (u8)(fl_scale8(es, amount_of_keep) + fl_scale8(os, amount_of_overlay));
+    u8 val = (u8)(fl_scale8(ev, amount_of_keep) + fl_scale8(ov, amount_of_overlay));
+
+    *out_h = hue;
+    *out_s = sat;
+    *out_v = val;
+}
+
+// ---------------------------------------------------------------------------
+// fadeUsingColor — src/colorutils.cpp (FastLED 3.6.0)
+// ---------------------------------------------------------------------------
+
+void fl_fade_using_color(u8 r, u8 g, u8 b, u8 fr, u8 fg, u8 fb, u8 *out_r, u8 *out_g,
+                         u8 *out_b) {
+    *out_r = fl_scale8(r, fr);
+    *out_g = fl_scale8(g, fg);
+    *out_b = fl_scale8(b, fb);
 }

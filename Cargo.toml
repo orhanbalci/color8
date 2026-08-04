@@ -1,3 +1,10 @@
 [workspace]
 resolver = "2"
 members = ["color8", "fastled-ref"]
+
+# TEMPORARY: color8 needs `lib8tion::blend8_8bit_full_range`, which is added
+# in the local lib8tion checkout but not yet pushed. Remove this once that
+# change lands on the lib8tion `master` branch — the git dependency in
+# color8/Cargo.toml will then resolve it on its own.
+[patch."https://github.com/orhanbalci/lib8tion.git"]
+lib8tion = { path = "../lib8tion" }

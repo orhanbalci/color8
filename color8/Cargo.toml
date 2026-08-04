@@ -16,4 +16,7 @@ lib8tion = { git = "https://github.com/orhanbalci/lib8tion.git" }
 
 [dev-dependencies]
 fastled-ref = { path = "../fastled-ref" }
+# Also a normal dependency; repeated here so the integration tests can pin
+# the underlying blend8 primitive against the C reference directly.
+lib8tion = { git = "https://github.com/orhanbalci/lib8tion.git" }
 proptest = "1.11.0"
