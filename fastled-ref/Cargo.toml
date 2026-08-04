@@ -1,0 +1,11 @@
+[package]
+name = "fastled-ref"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "FFI bindings to a C transcription of FastLED's colorutils algorithms, used only for differential testing against the color8 crate's Rust port."
+
+[dependencies]
+
+[build-dependencies]
+cc = "1"

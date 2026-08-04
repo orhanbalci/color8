@@ -1,0 +1,19 @@
+[package]
+name = "color8"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Orhan Balci <orhanbalci@gmail.com>"]
+description = "Rust port of FastLED colorutils — CRGB/CHSV, blending, gradients, palettes for embedded LED programming"
+license = "MIT"
+repository = "https://github.com/orhanbalci/color8"
+keywords = ["led", "embedded", "no-std", "color"]
+categories = ["embedded", "no-std"]
+readme = "README.md"
+
+[dependencies]
+lib8tion = { git = "https://github.com/orhanbalci/lib8tion.git" }
+
+[dev-dependencies]
+fastled-ref = { path = "../fastled-ref" }
+proptest = "1.11.0"
