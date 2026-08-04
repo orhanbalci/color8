@@ -114,8 +114,8 @@ dependencies = [
 
 [[package]]
 name = "lib8tion"
-version = "0.1.0"
-source = "git+https://github.com/orhanbalci/lib8tion.git#139c276aafd3bd642cac1015e3b7e6805d2f2bf9"
+version = "0.1.1"
+source = "git+https://github.com/orhanbalci/lib8tion.git#508a85aaf1c5556480bcf97409339f2eb3375429"
 
 [[package]]
 name = "libc"

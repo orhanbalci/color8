@@ -4,19 +4,34 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Orhan Balci <orhanbalci@gmail.com>"]
-description = "Rust port of FastLED colorutils — CRGB/CHSV, blending, gradients, palettes for embedded LED programming"
-license = "MIT"
+description = "Rust port of FastLED colorutils — CRGB/CHSV pixel types, HSV/RGB conversion, blending and gradients for embedded LED programming"
+documentation = "https://docs.rs/color8"
+homepage = "https://github.com/orhanbalci/color8"
 repository = "https://github.com/orhanbalci/color8"
-keywords = ["led", "embedded", "no-std", "color"]
-categories = ["embedded", "no-std"]
+license = "MIT"
+keywords = ["led", "embedded", "no-std", "color", "fastled"]
+categories = ["embedded", "no-std", "graphics"]
 readme = "README.md"
+# The test suites are omitted from the published package: they depend on
+# `fastled-ref`, a `publish = false` path crate that cargo strips on
+# publish, so a packaged copy of them could not compile. They live in the
+# repository instead.
+exclude = ["/tests"]
 
 [dependencies]
-lib8tion = { git = "https://github.com/orhanbalci/lib8tion.git" }
+# `version` is required to publish; `git` takes precedence locally. The
+# version floor is 0.1.1 because `blend` needs `blend8_8bit_full_range`,
+# which is not in the 0.1.0 release on crates.io.
+lib8tion = { version = "0.1.1", git = "https://github.com/orhanbalci/lib8tion.git" }
 
 [dev-dependencies]
 fastled-ref = { path = "../fastled-ref" }
 # Also a normal dependency; repeated here so the integration tests can pin
 # the underlying blend8 primitive against the C reference directly.
-lib8tion = { git = "https://github.com/orhanbalci/lib8tion.git" }
+lib8tion = { version = "0.1.1", git = "https://github.com/orhanbalci/lib8tion.git" }
 proptest = "1.11.0"
+
+[package.metadata.docs.rs]
+# Surface the embedded targets on docs.rs, since `no_std` support is the
+# point of the crate. Both are verified in CI.
+targets = ["thumbv7em-none-eabihf", "riscv32imc-unknown-none-elf"]

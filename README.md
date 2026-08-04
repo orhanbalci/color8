@@ -1,0 +1,103 @@
+# color8 — workspace
+
+A Rust port of [FastLED](https://github.com/FastLED/FastLED)'s `colorutils`,
+validated bit-for-bit against the original C.
+
+This repository is a two-crate Cargo workspace: the library that ships, and
+the test-only C reference it is measured against.
+
+| Crate | Published | Purpose |
+|---|---|---|
+| [`color8/`](color8/) | yes | The port. `no_std`, `#![forbid(unsafe_code)]`, no allocator. |
+| [`fastled-ref/`](fastled-ref/) | **no** (`publish = false`) | A C transcription of FastLED 3.6.0, compiled by `cc` and reached over FFI. Exists only so the test suite has ground truth. |
+
+For the ported-API status table and the deliberate behavioral deviations,
+see [`color8/README.md`](color8/README.md).
+
+## Why the reference crate is separate
+
+The whole point of the port is that `color8` contains no `unsafe`. Testing it
+against C requires FFI, and FFI requires `unsafe` — so the two are kept in
+different crates:
+
+- `unsafe` lives **only** in `fastled-ref`'s thin FFI wrappers, which are the
+  entire surface between Rust and the shim. `color8` keeps
+  `#![forbid(unsafe_code)]`, and that is enforced by the compiler rather than
+  by convention.
+- `fastled-ref` is a **dev-dependency** declared by `path`, and is marked
+  `publish = false`. It cannot reach a consumer of `color8`, cannot be
+  published by accident, and does not appear in the dependency graph of
+  anything that depends on `color8`.
+- The C in [`fastled-ref/src/shim.c`](fastled-ref/src/shim.c) is transcribed
+  verbatim from FastLED, portable-C path only — AVR assembly fast paths and
+  the `_LEAVING_R1_DIRTY` register-management variants are omitted, since on
+  the portable path they compute identical values.
+
+This is the same arrangement [`lib8tion`](https://github.com/orhanbalci/lib8tion)
+uses, and the two repos' shims are independent transcriptions of different
+parts of FastLED.
+
+## How the port is validated
+
+Two suites, doing different jobs:
+
+**Differential** (`color8/tests/differential.rs`) — run the Rust and the C on
+the same input and require identical bytes. Where a function's input domain
+is small enough, it is swept **exhaustively** rather than sampled: all three
+HSV conversions cover their entire 2²⁴ `(hue, sat, val)` domain, and the
+`Crgb` operators are swept so every channel sees every `(lhs, rhs)` byte
+pair. At roughly 70M comparisons the whole suite still finishes in under a
+second in release mode, so there is no reason to settle for sampling.
+
+**Property** (`color8/tests/properties.rs`) — `proptest` for the things
+exhaustive sweeping cannot reach (the array-shaped `fill_*`/`blend_*`
+functions, whose input space is length × colors × direction), plus algebraic
+invariants that hold by construction. The invariants matter independently:
+they can catch a transcription error that slipped past *both* sides of a
+differential comparison.
+
+### Quirks are pinned, not fixed
+
+FastLED 3.6.0 has known bugs — `rgb2hsv_approximate`'s orange/yellow hue
+wraparound (FastLED#436), and a truncated gradient delta that undershoots the
+end color on long ramps. These are **reproduced deliberately**, and the
+specific inputs that expose them are pinned in the differential suite. A
+byte-exact port that quietly corrects its source is no longer byte-exact, and
+the tests are there to make sure a well-meaning future cleanup fails loudly
+instead of silently diverging.
+
+## Working in the repo
+
+```sh
+cargo test --release          # both suites; --release matters, the sweeps are ~70M iterations
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+```
+
+Embedded targets — build the library only, since the test suites need `std`
+and a host C compiler:
+
+```sh
+rustup target add thumbv7em-none-eabihf riscv32imc-unknown-none-elf
+cargo build --lib -p color8 --target thumbv7em-none-eabihf
+cargo build --lib -p color8 --target riscv32imc-unknown-none-elf
+```
+
+[CI](.github/workflows/ci.yml) runs exactly these: host tests, lint, and a
+matrix of the two embedded targets.
+
+## Provenance
+
+The port targets the **FastLED 3.6.0** tag — the last release before upstream
+moved everything into the `fl::` namespace and split `colorutils.cpp` apart.
+Every file in `fastled-ref/` names the upstream source it came from.
+
+Version choice has teeth: FastLED changed its `blend8` formula after the
+3.6.x line, and the two disagree at the top of the range
+(`blend8(0, 255, 255)` is 255 in 3.6.0 and 254 in current master). `color8`
+therefore builds on `lib8tion::blend8_8bit_full_range`, which is the 3.6.0
+formula, rather than `lib8tion::blend8`, which is master's.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).

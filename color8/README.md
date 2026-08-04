@@ -70,7 +70,7 @@ Two suites:
   construction and would catch a transcription error that slipped through
   *both* sides of a differential check.
 
-Use `--release`: the exhaustive sweeps are ~50M iterations and are slow in a
+Use `--release`: the exhaustive sweeps are ~70M iterations and are slow in a
 debug build.
 
 ## `no_std` targets

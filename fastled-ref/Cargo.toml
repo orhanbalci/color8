@@ -2,8 +2,14 @@
 name = "fastled-ref"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.85"
+authors = ["Orhan Balci <orhanbalci@gmail.com>"]
+description = "FFI bindings to a C transcription of FastLED 3.6.0's colorutils algorithms, used only for differential testing against the color8 crate's Rust port."
+repository = "https://github.com/orhanbalci/color8"
+license = "MIT"
+# Test scaffolding, not a library anyone should depend on: it is a
+# `path` dev-dependency of `color8` and must never reach crates.io.
 publish = false
-description = "FFI bindings to a C transcription of FastLED's colorutils algorithms, used only for differential testing against the color8 crate's Rust port."
 
 [dependencies]
 
