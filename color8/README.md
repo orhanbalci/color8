@@ -7,11 +7,6 @@ array fill/gradient helpers that FastLED's effects are built on.
 Built on [`lib8tion`](https://github.com/orhanbalci/lib8tion) for the
 underlying fixed-point 8-bit math.
 
-> **Build note:** the workspace `Cargo.toml` currently carries a `[patch]`
-> pointing `lib8tion` at a local checkout, because `blend` needs
-> `lib8tion::blend8_8bit_full_range`, which is not yet on lib8tion's
-> `master`. Drop the patch once that change is pushed.
-
 ## Which FastLED?
 
 The port targets **FastLED 3.6.0** — the last release before upstream moved
