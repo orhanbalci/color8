@@ -30,6 +30,9 @@ fastled-ref = { path = "../fastled-ref" }
 # the underlying blend8 primitive against the C reference directly.
 lib8tion = { version = "0.1.1", git = "https://github.com/orhanbalci/lib8tion.git" }
 proptest = "1.11.0"
+# PNG output for the examples/ gallery — examples are std, unlike the
+# library itself.
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [package.metadata.docs.rs]
 # Surface the embedded targets on docs.rs, since `no_std` support is the
