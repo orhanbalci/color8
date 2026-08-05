@@ -36,7 +36,8 @@ pub use fill::{
 pub use heat::heat_color;
 pub use hsv::{Chsv, HsvHue, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate};
 pub use palette::{
-    ColorBlend, CrgbPalette16, CrgbPalette32, CrgbPalette256, color_from_palette16,
-    color_from_palette32, color_from_palette256,
+    ChsvPalette16, ChsvPalette32, ChsvPalette256, ColorBlend, CrgbPalette16, CrgbPalette32,
+    CrgbPalette256, color_from_palette16, color_from_palette16_hsv, color_from_palette32,
+    color_from_palette32_hsv, color_from_palette256, color_from_palette256_hsv,
 };
 pub use rgb::Crgb;

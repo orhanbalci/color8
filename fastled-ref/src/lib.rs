@@ -233,6 +233,41 @@ mod ffi {
             out_g: *mut u8,
             out_b: *mut u8,
         );
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn fl_color_from_palette16_hsv(
+            ph: *const u8,
+            ps: *const u8,
+            pv: *const u8,
+            index: u8,
+            brightness: u8,
+            blend: i32,
+            out_h: *mut u8,
+            out_s: *mut u8,
+            out_v: *mut u8,
+        );
+        #[allow(clippy::too_many_arguments)]
+        pub fn fl_color_from_palette32_hsv(
+            ph: *const u8,
+            ps: *const u8,
+            pv: *const u8,
+            index: u8,
+            brightness: u8,
+            blend: i32,
+            out_h: *mut u8,
+            out_s: *mut u8,
+            out_v: *mut u8,
+        );
+        pub fn fl_color_from_palette256_hsv(
+            ph: *const u8,
+            ps: *const u8,
+            pv: *const u8,
+            index: u8,
+            brightness: u8,
+            out_h: *mut u8,
+            out_s: *mut u8,
+            out_v: *mut u8,
+        );
     }
 }
 
@@ -464,6 +499,73 @@ pub fn color_from_palette256(pal: &[Rgb; 256], index: u8, brightness: u8) -> Rgb
         );
     }
     (r, g, b)
+}
+
+/// `ColorFromPalette` against a 16-entry CHSV palette, using FastLED's C
+/// reference. `blend`: 0 = NOBLEND, 1 = LINEARBLEND, 2 = LINEARBLEND_NOWRAP.
+pub fn color_from_palette16_hsv(pal: &[Rgb; 16], index: u8, brightness: u8, blend: i32) -> Rgb {
+    let ph: Vec<u8> = pal.iter().map(|c| c.0).collect();
+    let ps: Vec<u8> = pal.iter().map(|c| c.1).collect();
+    let pv: Vec<u8> = pal.iter().map(|c| c.2).collect();
+    let (mut h, mut s, mut v) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_color_from_palette16_hsv(
+            ph.as_ptr(),
+            ps.as_ptr(),
+            pv.as_ptr(),
+            index,
+            brightness,
+            blend,
+            &mut h,
+            &mut s,
+            &mut v,
+        );
+    }
+    (h, s, v)
+}
+
+/// `ColorFromPalette` against a 32-entry CHSV palette. See
+/// [`color_from_palette16_hsv`].
+pub fn color_from_palette32_hsv(pal: &[Rgb; 32], index: u8, brightness: u8, blend: i32) -> Rgb {
+    let ph: Vec<u8> = pal.iter().map(|c| c.0).collect();
+    let ps: Vec<u8> = pal.iter().map(|c| c.1).collect();
+    let pv: Vec<u8> = pal.iter().map(|c| c.2).collect();
+    let (mut h, mut s, mut v) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_color_from_palette32_hsv(
+            ph.as_ptr(),
+            ps.as_ptr(),
+            pv.as_ptr(),
+            index,
+            brightness,
+            blend,
+            &mut h,
+            &mut s,
+            &mut v,
+        );
+    }
+    (h, s, v)
+}
+
+/// `ColorFromPalette` against a 256-entry CHSV palette.
+pub fn color_from_palette256_hsv(pal: &[Rgb; 256], index: u8, brightness: u8) -> Rgb {
+    let ph: Vec<u8> = pal.iter().map(|c| c.0).collect();
+    let ps: Vec<u8> = pal.iter().map(|c| c.1).collect();
+    let pv: Vec<u8> = pal.iter().map(|c| c.2).collect();
+    let (mut h, mut s, mut v) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_color_from_palette256_hsv(
+            ph.as_ptr(),
+            ps.as_ptr(),
+            pv.as_ptr(),
+            index,
+            brightness,
+            &mut h,
+            &mut s,
+            &mut v,
+        );
+    }
+    (h, s, v)
 }
 
 /// Fills `num_leds` pixels between `c1` and `c2` using FastLED's

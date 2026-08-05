@@ -6,7 +6,7 @@
 //   - src/hsv2rgb.cpp        (hsv2rgb_rainbow, hsv2rgb_raw_C, rgb2hsv_approximate)
 //   - src/pixeltypes.h       (CRGB operators)
 //   - src/colorutils.cpp     (fill_gradient_RGB, nblend, fadeUsingColor, HeatColor,
-//                              ColorFromPalette)
+//                              ColorFromPalette — CRGB and CHSV overloads)
 //   - src/lib8tion/scale8.h  (scale8, scale8_video — FASTLED_SCALE8_FIXED == 1)
 //   - src/lib8tion/math8.h   (qadd8, qsub8, qmul8, blend8 — BLEND8_C branch)
 //
@@ -685,21 +685,44 @@ void fl_heat_color(u8 temperature, u8 *out_r, u8 *out_g, u8 *out_b) {
 }
 
 // ---------------------------------------------------------------------------
-// ColorFromPalette (CRGB) — src/colorutils.cpp (FastLED 3.6.0)
+// ColorFromPalette — src/colorutils.cpp (FastLED 3.6.0), transcribed from
+// the actual 3.6.0-tagged source (github.com/FastLED/FastLED, tag 3.6.0),
+// RAM-palette (CRGBPalette16/32/256, CHSVPalette16/32/256) overloads only —
+// not the PROGMEM (TProgmemRGBPalette*) ones, which color8 has no analogue
+// of.
 //
 // blend: 0 = NOBLEND, 1 = LINEARBLEND, 2 = LINEARBLEND_NOWRAP (this repo's
 // own numbering for the TBlendType parameter, not FastLED's enum values —
 // same convention as fl_nblend_hsv's `direction` parameter above).
 //
-// scale8_LEAVING_R1_DIRTY is transcribed as plain fl_scale8: on the
-// portable-C path they compute identical values, the AVR variant only skips
-// a register-zeroing instruction after the multiply (see the file header).
+// scale8_LEAVING_R1_DIRTY is transcribed as plain fl_scale8, and
+// scale8_video_LEAVING_R1_DIRTY as fl_scale8_video: on the portable-C path
+// they compute identical values to the non-DIRTY versions: the AVR variant
+// only skips a register-zeroing instruction after the multiply (see the
+// file header).
+//
+// LINEARBLEND_NOWRAP rescales the index via `map8(index, 0, N)`, which is
+// `scale8(index, N)` (map8's rangeStart is 0, so it contributes nothing) —
+// N is 239 for the 16-entry palettes and 247 for the 32-entry ones, *not*
+// 240/248: map8's `rangeWidth = rangeEnd - rangeStart` is exclusive of the
+// endpoint that scale8's `+1` in the fixed-point formula would otherwise
+// reach.
+//
+// Brightness handling differs by palette size and color space, and is
+// transcribed exactly rather than unified:
+//   - CRGBPalette16/32: brightness == 0 forces black; otherwise plain
+//     scale8(x, brightness + 1) (not scale8_video).
+//   - CRGBPalette256: scale8_video(x, brightness + 1) — no brightness == 0
+//     special case, unlike the 16/32-entry versions.
+//   - CHSVPalette16/32/256: only `val` is brightness-scaled, via plain
+//     scale8_video(val, brightness) — no "+1" rounding adjustment, unlike
+//     the CRGB versions.
 // ---------------------------------------------------------------------------
 
 void fl_color_from_palette16(const u8 *pr, const u8 *pg, const u8 *pb, u8 index,
                               u8 brightness, int blend, u8 *out_r, u8 *out_g, u8 *out_b) {
     if (blend == 2) {
-        index = fl_scale8(index, 240);
+        index = fl_scale8(index, 239);
     }
     u8 hi4 = (u8)(index >> 4);
     u8 lo4 = (u8)(index & 0x0F);
@@ -717,9 +740,16 @@ void fl_color_from_palette16(const u8 *pr, const u8 *pg, const u8 *pb, u8 index,
     }
 
     if (brightness != 255) {
-        r1 = fl_scale8_video(r1, brightness);
-        g1 = fl_scale8_video(g1, brightness);
-        b1 = fl_scale8_video(b1, brightness);
+        if (brightness == 0) {
+            r1 = 0;
+            g1 = 0;
+            b1 = 0;
+        } else {
+            u8 b2 = (u8)(brightness + 1);
+            r1 = fl_scale8(r1, b2);
+            g1 = fl_scale8(g1, b2);
+            b1 = fl_scale8(b1, b2);
+        }
     }
 
     *out_r = r1;
@@ -730,7 +760,7 @@ void fl_color_from_palette16(const u8 *pr, const u8 *pg, const u8 *pb, u8 index,
 void fl_color_from_palette32(const u8 *pr, const u8 *pg, const u8 *pb, u8 index,
                               u8 brightness, int blend, u8 *out_r, u8 *out_g, u8 *out_b) {
     if (blend == 2) {
-        index = fl_scale8(index, 248);
+        index = fl_scale8(index, 247);
     }
     u8 hi5 = (u8)(index >> 3);
     u8 lo3 = (u8)(index & 0x07);
@@ -748,9 +778,16 @@ void fl_color_from_palette32(const u8 *pr, const u8 *pg, const u8 *pb, u8 index,
     }
 
     if (brightness != 255) {
-        r1 = fl_scale8_video(r1, brightness);
-        g1 = fl_scale8_video(g1, brightness);
-        b1 = fl_scale8_video(b1, brightness);
+        if (brightness == 0) {
+            r1 = 0;
+            g1 = 0;
+            b1 = 0;
+        } else {
+            u8 b2 = (u8)(brightness + 1);
+            r1 = fl_scale8(r1, b2);
+            g1 = fl_scale8(g1, b2);
+            b1 = fl_scale8(b1, b2);
+        }
     }
 
     *out_r = r1;
@@ -763,12 +800,116 @@ void fl_color_from_palette256(const u8 *pr, const u8 *pg, const u8 *pb, u8 index
     u8 r1 = pr[index], g1 = pg[index], b1 = pb[index];
 
     if (brightness != 255) {
-        r1 = fl_scale8_video(r1, brightness);
-        g1 = fl_scale8_video(g1, brightness);
-        b1 = fl_scale8_video(b1, brightness);
+        u8 b2 = (u8)(brightness + 1);
+        r1 = fl_scale8_video(r1, b2);
+        g1 = fl_scale8_video(g1, b2);
+        b1 = fl_scale8_video(b1, b2);
     }
 
     *out_r = r1;
     *out_g = g1;
     *out_b = b1;
+}
+
+// ---------------------------------------------------------------------------
+// ColorFromPalette (CHSV) — src/colorutils.cpp (FastLED 3.6.0)
+// ---------------------------------------------------------------------------
+
+void fl_color_from_palette16_hsv(const u8 *ph, const u8 *ps, const u8 *pv, u8 index,
+                                  u8 brightness, int blend, u8 *out_h, u8 *out_s, u8 *out_v) {
+    if (blend == 2) {
+        index = fl_scale8(index, 239);
+    }
+    u8 hi4 = (u8)(index >> 4);
+    u8 lo4 = (u8)(index & 0x0F);
+
+    u8 hue1 = ph[hi4], sat1 = ps[hi4], val1 = pv[hi4];
+
+    if (blend != 0 && lo4) {
+        u8 next = (hi4 == 15) ? 0 : (u8)(hi4 + 1);
+        u8 hue2 = ph[next], sat2 = ps[next], val2 = pv[next];
+        u8 f2 = (u8)(lo4 << 4);
+        u8 f1 = (u8)(255 - f2);
+
+        if (sat1 == 0 || val1 == 0) hue1 = hue2;
+        if (sat2 == 0 || val2 == 0) hue2 = hue1;
+
+        sat1 = fl_scale8(sat1, f1);
+        val1 = fl_scale8(val1, f1);
+        sat2 = fl_scale8(sat2, f2);
+        val2 = fl_scale8(val2, f2);
+        sat1 = (u8)(sat1 + sat2);
+        val1 = (u8)(val1 + val2);
+
+        u8 deltahue = (u8)(hue2 - hue1);
+        if (deltahue & 0x80) {
+            hue1 = (u8)(hue1 - fl_scale8((u8)(256 - deltahue), f2));
+        } else {
+            hue1 = (u8)(hue1 + fl_scale8(deltahue, f2));
+        }
+    }
+
+    if (brightness != 255) {
+        val1 = fl_scale8_video(val1, brightness);
+    }
+
+    *out_h = hue1;
+    *out_s = sat1;
+    *out_v = val1;
+}
+
+void fl_color_from_palette32_hsv(const u8 *ph, const u8 *ps, const u8 *pv, u8 index,
+                                  u8 brightness, int blend, u8 *out_h, u8 *out_s, u8 *out_v) {
+    if (blend == 2) {
+        index = fl_scale8(index, 247);
+    }
+    u8 hi5 = (u8)(index >> 3);
+    u8 lo3 = (u8)(index & 0x07);
+
+    u8 hue1 = ph[hi5], sat1 = ps[hi5], val1 = pv[hi5];
+
+    if (blend != 0 && lo3) {
+        u8 next = (hi5 == 31) ? 0 : (u8)(hi5 + 1);
+        u8 hue2 = ph[next], sat2 = ps[next], val2 = pv[next];
+        u8 f2 = (u8)(lo3 << 5);
+        u8 f1 = (u8)(255 - f2);
+
+        if (sat1 == 0 || val1 == 0) hue1 = hue2;
+        if (sat2 == 0 || val2 == 0) hue2 = hue1;
+
+        sat1 = fl_scale8(sat1, f1);
+        val1 = fl_scale8(val1, f1);
+        sat2 = fl_scale8(sat2, f2);
+        val2 = fl_scale8(val2, f2);
+        sat1 = (u8)(sat1 + sat2);
+        val1 = (u8)(val1 + val2);
+
+        u8 deltahue = (u8)(hue2 - hue1);
+        if (deltahue & 0x80) {
+            hue1 = (u8)(hue1 - fl_scale8((u8)(256 - deltahue), f2));
+        } else {
+            hue1 = (u8)(hue1 + fl_scale8(deltahue, f2));
+        }
+    }
+
+    if (brightness != 255) {
+        val1 = fl_scale8_video(val1, brightness);
+    }
+
+    *out_h = hue1;
+    *out_s = sat1;
+    *out_v = val1;
+}
+
+void fl_color_from_palette256_hsv(const u8 *ph, const u8 *ps, const u8 *pv, u8 index,
+                                   u8 brightness, u8 *out_h, u8 *out_s, u8 *out_v) {
+    u8 hue1 = ph[index], sat1 = ps[index], val1 = pv[index];
+
+    if (brightness != 255) {
+        val1 = fl_scale8_video(val1, brightness);
+    }
+
+    *out_h = hue1;
+    *out_s = sat1;
+    *out_v = val1;
 }

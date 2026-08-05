@@ -8,9 +8,10 @@
 //! release-mode test, and this is where subtle wrongness hides.
 
 use color8::{
-    Chsv, ColorBlend, Crgb, CrgbPalette16, CrgbPalette32, CrgbPalette256, color_from_palette16,
-    color_from_palette32, color_from_palette256, heat_color, hsv2rgb_rainbow, hsv2rgb_spectrum,
-    rgb2hsv_approximate,
+    Chsv, ChsvPalette16, ChsvPalette32, ChsvPalette256, ColorBlend, Crgb, CrgbPalette16,
+    CrgbPalette32, CrgbPalette256, color_from_palette16, color_from_palette16_hsv,
+    color_from_palette32, color_from_palette32_hsv, color_from_palette256,
+    color_from_palette256_hsv, heat_color, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate,
 };
 
 // ---------------------------------------------------------------------------
@@ -456,6 +457,72 @@ fn make_palette256(seed: u8) -> [Crgb; 256] {
     })
 }
 
+/// Same idea as [`make_palette16`], but for HSV, and deliberately zeroing
+/// `sat` or `val` on some entries (every 4th / 5th) so the black/white
+/// hue-adoption special case in the hue blend gets exercised too.
+fn make_hsv_palette16(seed: u8) -> [Chsv; 16] {
+    core::array::from_fn(|i| {
+        let i = i as u8;
+        let sat = if i % 4 == 0 {
+            0
+        } else {
+            i.wrapping_mul(37).wrapping_add(seed)
+        };
+        let val = if i % 5 == 0 {
+            0
+        } else {
+            i.wrapping_mul(59).wrapping_add(seed).wrapping_add(1)
+        };
+        Chsv::new(
+            i.wrapping_mul(83).wrapping_add(seed).wrapping_add(2),
+            sat,
+            val,
+        )
+    })
+}
+
+fn make_hsv_palette32(seed: u8) -> [Chsv; 32] {
+    core::array::from_fn(|i| {
+        let i = i as u8;
+        let sat = if i % 4 == 0 {
+            0
+        } else {
+            i.wrapping_mul(19).wrapping_add(seed)
+        };
+        let val = if i % 5 == 0 {
+            0
+        } else {
+            i.wrapping_mul(29).wrapping_add(seed).wrapping_add(1)
+        };
+        Chsv::new(
+            i.wrapping_mul(41).wrapping_add(seed).wrapping_add(2),
+            sat,
+            val,
+        )
+    })
+}
+
+fn make_hsv_palette256(seed: u8) -> [Chsv; 256] {
+    core::array::from_fn(|i| {
+        let i = i as u8;
+        let sat = if i % 4 == 0 {
+            0
+        } else {
+            i.wrapping_mul(3).wrapping_add(seed)
+        };
+        let val = if i % 5 == 0 {
+            0
+        } else {
+            i.wrapping_mul(5).wrapping_add(seed).wrapping_add(1)
+        };
+        Chsv::new(i.wrapping_add(seed).wrapping_add(2), sat, val)
+    })
+}
+
+fn hsv_tuple(c: Chsv) -> (u8, u8, u8) {
+    (c.hue, c.sat, c.val)
+}
+
 const BLEND_MODES: [ColorBlend; 3] = [
     ColorBlend::NoBlend,
     ColorBlend::LinearBlend,
@@ -470,8 +537,12 @@ fn blend_code(b: ColorBlend) -> i32 {
     }
 }
 
-const SEEDS: [u8; 6] = [0, 1, 77, 128, 200, 255];
-const BRIGHTNESSES: [u8; 6] = [0, 1, 17, 128, 254, 255];
+/// Fewer seeds than the CRGB-operator sweeps above, since here every seed
+/// multiplies out over the *full* index x brightness x blend space rather
+/// than a sampled brightness set — brightness handling turned out to differ
+/// subtly enough between these six functions (see palette.rs's module
+/// docs) that it's worth sweeping exhaustively rather than sampling it.
+const SEEDS: [u8; 3] = [0, 77, 255];
 
 #[test]
 fn color_from_palette16_matches_reference_exhaustive() {
@@ -482,7 +553,7 @@ fn color_from_palette16_matches_reference_exhaustive() {
 
         for blend in BLEND_MODES {
             for index in 0..=255u8 {
-                for brightness in BRIGHTNESSES {
+                for brightness in 0..=255u8 {
                     let got = tuple(color_from_palette16(&pal, index, brightness, blend));
                     let want = fastled_ref::color_from_palette16(
                         &ref_pal,
@@ -509,7 +580,7 @@ fn color_from_palette32_matches_reference_exhaustive() {
 
         for blend in BLEND_MODES {
             for index in 0..=255u8 {
-                for brightness in BRIGHTNESSES {
+                for brightness in 0..=255u8 {
                     let got = tuple(color_from_palette32(&pal, index, brightness, blend));
                     let want = fastled_ref::color_from_palette32(
                         &ref_pal,
@@ -535,12 +606,86 @@ fn color_from_palette256_matches_reference_exhaustive() {
         let ref_pal = entries.map(tuple);
 
         for index in 0..=255u8 {
-            for brightness in BRIGHTNESSES {
+            for brightness in 0..=255u8 {
                 let got = tuple(color_from_palette256(&pal, index, brightness));
                 let want = fastled_ref::color_from_palette256(&ref_pal, index, brightness);
                 assert_eq!(
                     got, want,
                     "color_from_palette256(seed={seed},index={index},brightness={brightness})"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn color_from_palette16_hsv_matches_reference_exhaustive() {
+    for seed in SEEDS {
+        let entries = make_hsv_palette16(seed);
+        let pal = ChsvPalette16::new(entries);
+        let ref_pal = entries.map(hsv_tuple);
+
+        for blend in BLEND_MODES {
+            for index in 0..=255u8 {
+                for brightness in 0..=255u8 {
+                    let got = hsv_tuple(color_from_palette16_hsv(&pal, index, brightness, blend));
+                    let want = fastled_ref::color_from_palette16_hsv(
+                        &ref_pal,
+                        index,
+                        brightness,
+                        blend_code(blend),
+                    );
+                    assert_eq!(
+                        got, want,
+                        "color_from_palette16_hsv(seed={seed},index={index},brightness={brightness},blend={blend:?})"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn color_from_palette32_hsv_matches_reference_exhaustive() {
+    for seed in SEEDS {
+        let entries = make_hsv_palette32(seed);
+        let pal = ChsvPalette32::new(entries);
+        let ref_pal = entries.map(hsv_tuple);
+
+        for blend in BLEND_MODES {
+            for index in 0..=255u8 {
+                for brightness in 0..=255u8 {
+                    let got = hsv_tuple(color_from_palette32_hsv(&pal, index, brightness, blend));
+                    let want = fastled_ref::color_from_palette32_hsv(
+                        &ref_pal,
+                        index,
+                        brightness,
+                        blend_code(blend),
+                    );
+                    assert_eq!(
+                        got, want,
+                        "color_from_palette32_hsv(seed={seed},index={index},brightness={brightness},blend={blend:?})"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn color_from_palette256_hsv_matches_reference_exhaustive() {
+    for seed in SEEDS {
+        let entries = make_hsv_palette256(seed);
+        let pal = ChsvPalette256::new(entries);
+        let ref_pal = entries.map(hsv_tuple);
+
+        for index in 0..=255u8 {
+            for brightness in 0..=255u8 {
+                let got = hsv_tuple(color_from_palette256_hsv(&pal, index, brightness));
+                let want = fastled_ref::color_from_palette256_hsv(&ref_pal, index, brightness);
+                assert_eq!(
+                    got, want,
+                    "color_from_palette256_hsv(seed={seed},index={index},brightness={brightness})"
                 );
             }
         }
