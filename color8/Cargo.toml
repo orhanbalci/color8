@@ -12,29 +12,16 @@ license = "MIT"
 keywords = ["led", "embedded", "no-std", "color", "fastled"]
 categories = ["embedded", "no-std", "graphics"]
 readme = "README.md"
-# The test suites are omitted from the published package: they depend on
-# `fastled-ref`, a `publish = false` path crate that cargo strips on
-# publish, so a packaged copy of them could not compile. They live in the
-# repository instead.
-exclude = ["/tests"]
+exclude = ["/tests", "/examples"]
 
 [dependencies]
-# `version` is required to publish; `git` takes precedence locally. The
-# version floor is 0.1.1 because `blend` needs `blend8_8bit_full_range`,
-# which is not in the 0.1.0 release on crates.io.
-lib8tion = { version = "0.1.1", git = "https://github.com/orhanbalci/lib8tion.git" }
+lib8tion = "0.1.1"
 
 [dev-dependencies]
 fastled-ref = { path = "../fastled-ref" }
-# Also a normal dependency; repeated here so the integration tests can pin
-# the underlying blend8 primitive against the C reference directly.
-lib8tion = { version = "0.1.1", git = "https://github.com/orhanbalci/lib8tion.git" }
+lib8tion = "0.1.1"
 proptest = "1.11.0"
-# PNG output for the examples/ gallery — examples are std, unlike the
-# library itself.
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [package.metadata.docs.rs]
-# Surface the embedded targets on docs.rs, since `no_std` support is the
-# point of the crate. Both are verified in CI.
 targets = ["thumbv7em-none-eabihf", "riscv32imc-unknown-none-elf"]

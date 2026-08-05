@@ -175,7 +175,8 @@ dependencies = [
 [[package]]
 name = "lib8tion"
 version = "0.1.1"
-source = "git+https://github.com/orhanbalci/lib8tion.git#508a85aaf1c5556480bcf97409339f2eb3375429"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f21e4b357d0ace305f658e4e00dffd3e9195eb478f1e59adf98f37021ffbb1f"
 
 [[package]]
 name = "libc"
