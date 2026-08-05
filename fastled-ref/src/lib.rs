@@ -268,6 +268,28 @@ mod ffi {
             out_s: *mut u8,
             out_v: *mut u8,
         );
+
+        pub fn fl_crgb_palette16_from_gradient(
+            bytes: *const u8,
+            byte_count: i32,
+            out_r: *mut u8,
+            out_g: *mut u8,
+            out_b: *mut u8,
+        );
+        pub fn fl_crgb_palette32_from_gradient(
+            bytes: *const u8,
+            byte_count: i32,
+            out_r: *mut u8,
+            out_g: *mut u8,
+            out_b: *mut u8,
+        );
+        pub fn fl_crgb_palette256_from_gradient(
+            bytes: *const u8,
+            byte_count: i32,
+            out_r: *mut u8,
+            out_g: *mut u8,
+            out_b: *mut u8,
+        );
     }
 }
 
@@ -589,4 +611,50 @@ pub fn fill_gradient_rgb2(num_leds: u16, c1: Rgb, c2: Rgb) -> Vec<Rgb> {
         );
     }
     (0..n).map(|i| (r[i], g[i], b[i])).collect()
+}
+
+/// Parses `bytes` as a FastLED gradient-palette byte stream using the C
+/// reference for `CRGBPalette16::operator=(TProgmemRGBGradientPalette_bytes)`.
+pub fn crgb_palette16_from_gradient(bytes: &[u8]) -> [Rgb; 16] {
+    let (mut r, mut g, mut b) = ([0u8; 16], [0u8; 16], [0u8; 16]);
+    unsafe {
+        ffi::fl_crgb_palette16_from_gradient(
+            bytes.as_ptr(),
+            bytes.len() as i32,
+            r.as_mut_ptr(),
+            g.as_mut_ptr(),
+            b.as_mut_ptr(),
+        );
+    }
+    core::array::from_fn(|i| (r[i], g[i], b[i]))
+}
+
+/// See [`crgb_palette16_from_gradient`], for the 32-entry palette.
+pub fn crgb_palette32_from_gradient(bytes: &[u8]) -> [Rgb; 32] {
+    let (mut r, mut g, mut b) = ([0u8; 32], [0u8; 32], [0u8; 32]);
+    unsafe {
+        ffi::fl_crgb_palette32_from_gradient(
+            bytes.as_ptr(),
+            bytes.len() as i32,
+            r.as_mut_ptr(),
+            g.as_mut_ptr(),
+            b.as_mut_ptr(),
+        );
+    }
+    core::array::from_fn(|i| (r[i], g[i], b[i]))
+}
+
+/// See [`crgb_palette16_from_gradient`], for the 256-entry palette.
+pub fn crgb_palette256_from_gradient(bytes: &[u8]) -> [Rgb; 256] {
+    let (mut r, mut g, mut b) = ([0u8; 256], [0u8; 256], [0u8; 256]);
+    unsafe {
+        ffi::fl_crgb_palette256_from_gradient(
+            bytes.as_ptr(),
+            bytes.len() as i32,
+            r.as_mut_ptr(),
+            g.as_mut_ptr(),
+            b.as_mut_ptr(),
+        );
+    }
+    core::array::from_fn(|i| (r[i], g[i], b[i]))
 }

@@ -18,9 +18,11 @@
 
 pub mod blend;
 pub mod fill;
+pub mod gradient_palette;
 pub mod heat;
 pub mod hsv;
 pub mod palette;
+pub mod presets;
 pub mod rgb;
 
 pub use blend::{
@@ -33,6 +35,9 @@ pub use fill::{
     fill_gradient_rgb3, fill_gradient_rgb4, fill_gradient3, fill_gradient4, fill_rainbow,
     fill_rainbow_circular, fill_solid, nscale8, nscale8_raw, nscale8_video,
 };
+pub use gradient_palette::{
+    crgb_palette16_from_gradient, crgb_palette32_from_gradient, crgb_palette256_from_gradient,
+};
 pub use heat::heat_color;
 pub use hsv::{Chsv, HsvHue, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate};
 pub use palette::{
@@ -40,5 +45,9 @@ pub use palette::{
     CrgbPalette256, Palette, color_from_palette16, color_from_palette16_hsv, color_from_palette32,
     color_from_palette32_hsv, color_from_palette256, color_from_palette256_hsv, fill_palette,
     fill_palette_circular,
+};
+pub use presets::{
+    CLOUD_COLORS, FOREST_COLORS, HEAT_COLORS, LAVA_COLORS, OCEAN_COLORS, PARTY_COLORS,
+    RAINBOW_COLORS, RAINBOW_GRADIENT_BYTES, RAINBOW_STRIPE_COLORS, rainbow_gradient_palette16,
 };
 pub use rgb::Crgb;

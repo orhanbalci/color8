@@ -11,8 +11,9 @@ use color8::{
     Chsv, ChsvPalette16, ChsvPalette32, ChsvPalette256, ColorBlend, Crgb, CrgbPalette16,
     CrgbPalette32, CrgbPalette256, Palette, color_from_palette16, color_from_palette16_hsv,
     color_from_palette32, color_from_palette32_hsv, color_from_palette256,
-    color_from_palette256_hsv, fill_palette, fill_palette_circular, heat_color, hsv2rgb_rainbow,
-    hsv2rgb_spectrum, rgb2hsv_approximate,
+    color_from_palette256_hsv, crgb_palette16_from_gradient, crgb_palette32_from_gradient,
+    crgb_palette256_from_gradient, fill_palette, fill_palette_circular, heat_color,
+    hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate,
 };
 
 // ---------------------------------------------------------------------------
@@ -896,6 +897,93 @@ fn fill_palette_circular_matches_reference_across_sizes_and_color_spaces() {
             |i, b, _bl| fastled_ref::color_from_palette256_hsv(&refh256, i, b),
             hsv_tuple,
             "chsv256",
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Gradient-palette byte format
+// ---------------------------------------------------------------------------
+
+fn gradient_bytes(stops: &[(u8, u8, u8, u8)]) -> Vec<u8> {
+    stops
+        .iter()
+        .flat_map(|&(i, r, g, b)| [i, r, g, b])
+        .collect()
+}
+
+fn tuple16(pal: CrgbPalette16) -> [(u8, u8, u8); 16] {
+    pal.0.map(tuple)
+}
+
+fn tuple32(pal: CrgbPalette32) -> [(u8, u8, u8); 32] {
+    pal.0.map(tuple)
+}
+
+fn tuple256(pal: CrgbPalette256) -> [(u8, u8, u8); 256] {
+    pal.0.map(tuple)
+}
+
+#[test]
+fn gradient_palette_matches_reference() {
+    let many_stops: Vec<u8> = (0..20u16)
+        .flat_map(|i| {
+            let idx = ((i * 255) / 19) as u8;
+            [
+                idx,
+                (i * 13) as u8,
+                (i * 7).wrapping_add(50) as u8,
+                (i * 29).wrapping_add(3) as u8,
+            ]
+        })
+        .collect();
+
+    let cases: Vec<Vec<u8>> = vec![
+        // simple 2-stop
+        gradient_bytes(&[(0, 255, 0, 0), (255, 0, 0, 255)]),
+        // 4-stop
+        gradient_bytes(&[
+            (0, 0, 0, 0),
+            (64, 255, 0, 0),
+            (160, 0, 255, 0),
+            (255, 0, 0, 255),
+        ]),
+        // FastLED's own Rainbow_gp preset bytes, 9 stops
+        color8::RAINBOW_GRADIENT_BYTES.to_vec(),
+        // >= 16 stops: exercises the "no compaction" branch
+        many_stops,
+        // the doc example: a single 1/256th-wide red spike surrounded by
+        // black, which is exactly what the slot-compaction logic exists to
+        // preserve in the 16/32-entry destinations
+        gradient_bytes(&[
+            (0, 0, 0, 0),
+            (124, 0, 0, 0),
+            (125, 255, 0, 0),
+            (126, 0, 0, 0),
+            (255, 0, 0, 0),
+        ]),
+        // malformed: no index==255 terminator before the slice runs out
+        gradient_bytes(&[(0, 10, 20, 30), (50, 40, 50, 60)]),
+        // malformed: empty / too short for even one entry
+        Vec::new(),
+        vec![7, 8, 9],
+    ];
+
+    for (ci, bytes) in cases.iter().enumerate() {
+        assert_eq!(
+            tuple16(crgb_palette16_from_gradient(bytes)),
+            fastled_ref::crgb_palette16_from_gradient(bytes),
+            "crgb_palette16_from_gradient case {ci}"
+        );
+        assert_eq!(
+            tuple32(crgb_palette32_from_gradient(bytes)),
+            fastled_ref::crgb_palette32_from_gradient(bytes),
+            "crgb_palette32_from_gradient case {ci}"
+        );
+        assert_eq!(
+            tuple256(crgb_palette256_from_gradient(bytes)),
+            fastled_ref::crgb_palette256_from_gradient(bytes),
+            "crgb_palette256_from_gradient case {ci}"
         );
     }
 }

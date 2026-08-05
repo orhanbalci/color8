@@ -7,6 +7,8 @@
 //   - src/pixeltypes.h       (CRGB operators)
 //   - src/colorutils.cpp     (fill_gradient_RGB, nblend, fadeUsingColor, HeatColor,
 //                              ColorFromPalette — CRGB and CHSV overloads)
+//   - src/colorutils.h       (CRGBPalette16/32/256's
+//                              operator=(TProgmemRGBGradientPalette_bytes))
 //   - src/lib8tion/scale8.h  (scale8, scale8_video — FASTLED_SCALE8_FIXED == 1)
 //   - src/lib8tion/math8.h   (qadd8, qsub8, qmul8, blend8 — BLEND8_C branch)
 //
@@ -912,4 +914,165 @@ void fl_color_from_palette256_hsv(const u8 *ph, const u8 *ps, const u8 *pv, u8 i
     *out_h = hue1;
     *out_s = sat1;
     *out_v = val1;
+}
+
+// ---------------------------------------------------------------------------
+// Gradient-palette parsing — CRGBPalette16/32/256's
+// operator=(TProgmemRGBGradientPalette_bytes) — src/colorutils.h (FastLED 3.6.0)
+// ---------------------------------------------------------------------------
+
+typedef struct {
+    u8 index, r, g, b;
+} fl_grad_entry;
+
+static int fl_grad_entry_at(const u8 *bytes, int byte_count, int i, fl_grad_entry *out) {
+    int total = byte_count / 4;
+    if (i >= total) return 0;
+    const u8 *p = bytes + i * 4;
+    out->index = p[0];
+    out->r = p[1];
+    out->g = p[2];
+    out->b = p[3];
+    return 1;
+}
+
+static int fl_grad_count_stops(const u8 *bytes, int byte_count) {
+    int total = byte_count / 4;
+    fl_grad_entry e;
+    for (int i = 0; i < total; ++i) {
+        fl_grad_entry_at(bytes, byte_count, i, &e);
+        if (e.index == 255) return i + 1;
+    }
+    return total;
+}
+
+// fill_gradient_RGB(CRGB* leds, uint16_t startpos, CRGB startcolor, uint16_t
+// endpos, CRGB endcolor) — src/colorutils.cpp — into an existing n-length
+// array, positions beyond n silently dropped (matches color8's
+// fill_gradient_rgb_range, which uses `leds.get_mut`).
+static void fl_fill_gradient_rgb_range(u8 *out_r, u8 *out_g, u8 *out_b, int n, u16 startpos, u8 sr,
+                                        u8 sg, u8 sb, u16 endpos, u8 er, u8 eg, u8 eb) {
+    if (endpos < startpos) {
+        u16 tp = endpos;
+        endpos = startpos;
+        startpos = tp;
+        u8 tr = sr, tg = sg, tb = sb;
+        sr = er;
+        sg = eg;
+        sb = eb;
+        er = tr;
+        eg = tg;
+        eb = tb;
+    }
+
+    int16_t rdistance87 = (int16_t)(((int16_t)er - (int16_t)sr) << 7);
+    int16_t gdistance87 = (int16_t)(((int16_t)eg - (int16_t)sg) << 7);
+    int16_t bdistance87 = (int16_t)(((int16_t)eb - (int16_t)sb) << 7);
+
+    u16 pixeldistance = (u16)(endpos - startpos);
+    int16_t divisor = pixeldistance ? (int16_t)pixeldistance : 1;
+
+    int16_t rdelta87 = (int16_t)((rdistance87 / divisor) * 2);
+    int16_t gdelta87 = (int16_t)((gdistance87 / divisor) * 2);
+    int16_t bdelta87 = (int16_t)((bdistance87 / divisor) * 2);
+
+    int32_t r88 = (int32_t)sr << 8;
+    int32_t g88 = (int32_t)sg << 8;
+    int32_t b88 = (int32_t)sb << 8;
+
+    for (u16 i = startpos; i <= endpos; ++i) {
+        if (i < (u16)n) {
+            out_r[i] = (u8)(r88 >> 8);
+            out_g[i] = (u8)(g88 >> 8);
+            out_b[i] = (u8)(b88 >> 8);
+        }
+        r88 += rdelta87;
+        g88 += gdelta87;
+        b88 += bdelta87;
+        if (i == endpos) break;
+    }
+}
+
+static void fl_gradient_palette_compact(const u8 *bytes, int byte_count, u8 *out_r, u8 *out_g,
+                                         u8 *out_b, int n, int divisor, int max_slot) {
+    for (int i = 0; i < n; ++i) {
+        out_r[i] = 0;
+        out_g[i] = 0;
+        out_b[i] = 0;
+    }
+
+    fl_grad_entry e0;
+    if (!fl_grad_entry_at(bytes, byte_count, 0, &e0)) return;
+    u8 sr = e0.r, sg = e0.g, sb = e0.b;
+
+    int count = fl_grad_count_stops(bytes, byte_count);
+    int last_slot_used = -1;
+    int index_start = 0;
+    int i = 1;
+
+    while (index_start < 255) {
+        fl_grad_entry e;
+        if (!fl_grad_entry_at(bytes, byte_count, i, &e)) break;
+        int index_end = e.index;
+
+        int istart8 = index_start / divisor;
+        int iend8 = index_end / divisor;
+
+        if (count < 16) {
+            if (istart8 <= last_slot_used && last_slot_used < max_slot) {
+                istart8 = last_slot_used + 1;
+                if (iend8 < istart8) iend8 = istart8;
+            }
+            last_slot_used = iend8;
+        }
+
+        fl_fill_gradient_rgb_range(out_r, out_g, out_b, n, (u16)istart8, sr, sg, sb, (u16)iend8,
+                                    e.r, e.g, e.b);
+
+        index_start = index_end;
+        sr = e.r;
+        sg = e.g;
+        sb = e.b;
+        i++;
+    }
+}
+
+void fl_crgb_palette16_from_gradient(const u8 *bytes, int byte_count, u8 *out_r, u8 *out_g,
+                                      u8 *out_b) {
+    fl_gradient_palette_compact(bytes, byte_count, out_r, out_g, out_b, 16, 16, 15);
+}
+
+void fl_crgb_palette32_from_gradient(const u8 *bytes, int byte_count, u8 *out_r, u8 *out_g,
+                                      u8 *out_b) {
+    fl_gradient_palette_compact(bytes, byte_count, out_r, out_g, out_b, 32, 8, 31);
+}
+
+void fl_crgb_palette256_from_gradient(const u8 *bytes, int byte_count, u8 *out_r, u8 *out_g,
+                                       u8 *out_b) {
+    for (int i = 0; i < 256; ++i) {
+        out_r[i] = 0;
+        out_g[i] = 0;
+        out_b[i] = 0;
+    }
+
+    fl_grad_entry e0;
+    if (!fl_grad_entry_at(bytes, byte_count, 0, &e0)) return;
+    u8 sr = e0.r, sg = e0.g, sb = e0.b;
+
+    int index_start = 0;
+    int i = 1;
+    while (index_start < 255) {
+        fl_grad_entry e;
+        if (!fl_grad_entry_at(bytes, byte_count, i, &e)) break;
+        int index_end = e.index;
+
+        fl_fill_gradient_rgb_range(out_r, out_g, out_b, 256, (u16)index_start, sr, sg, sb,
+                                    (u16)index_end, e.r, e.g, e.b);
+
+        index_start = index_end;
+        sr = e.r;
+        sg = e.g;
+        sb = e.b;
+        i++;
+    }
 }

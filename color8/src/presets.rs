@@ -1,0 +1,198 @@
+//! FastLED's predefined palettes (`src/colorpalettes.cpp`, FastLED 3.6.0),
+//! transcribed from the actual 3.6.0-tagged source. Named-color values
+//! (`CRGB::Blue` and friends) are taken from the standard HTML/CSS color
+//! hex codes FastLED's `CRGB` enum uses (`src/pixeltypes.h`).
+//!
+//! FastLED stores these `PROGMEM` so AVR targets don't burn SRAM on them;
+//! Rust's `const`s already live in read-only memory without needing a
+//! platform-specific macro for that, so these are plain `pub const`s
+//! rather than anything PROGMEM-flavored.
+
+use crate::gradient_palette::crgb_palette16_from_gradient;
+use crate::palette::CrgbPalette16;
+use crate::rgb::Crgb;
+
+/// Cloudy color palette: blues and white.
+pub const CLOUD_COLORS: CrgbPalette16 = CrgbPalette16::new([
+    Crgb::new(0x00, 0x00, 0xFF), // Blue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x00, 0x00, 0xFF), // Blue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x87, 0xCE, 0xEB), // SkyBlue
+    Crgb::new(0x87, 0xCE, 0xEB), // SkyBlue
+    Crgb::new(0xAD, 0xD8, 0xE6), // LightBlue
+    Crgb::new(0xFF, 0xFF, 0xFF), // White
+    Crgb::new(0xAD, 0xD8, 0xE6), // LightBlue
+    Crgb::new(0x87, 0xCE, 0xEB), // SkyBlue
+]);
+
+/// Lava color palette: black through red and orange to white.
+pub const LAVA_COLORS: CrgbPalette16 = CrgbPalette16::new([
+    Crgb::new(0x00, 0x00, 0x00), // Black
+    Crgb::new(0x80, 0x00, 0x00), // Maroon
+    Crgb::new(0x00, 0x00, 0x00), // Black
+    Crgb::new(0x80, 0x00, 0x00), // Maroon
+    Crgb::new(0x8B, 0x00, 0x00), // DarkRed
+    Crgb::new(0x8B, 0x00, 0x00), // DarkRed
+    Crgb::new(0x80, 0x00, 0x00), // Maroon
+    Crgb::new(0x8B, 0x00, 0x00), // DarkRed
+    Crgb::new(0x8B, 0x00, 0x00), // DarkRed
+    Crgb::new(0x8B, 0x00, 0x00), // DarkRed
+    Crgb::new(0xFF, 0x00, 0x00), // Red
+    Crgb::new(0xFF, 0xA5, 0x00), // Orange
+    Crgb::new(0xFF, 0xFF, 0xFF), // White
+    Crgb::new(0xFF, 0xA5, 0x00), // Orange
+    Crgb::new(0xFF, 0x00, 0x00), // Red
+    Crgb::new(0x8B, 0x00, 0x00), // DarkRed
+]);
+
+/// Ocean color palette: blues, teals and whites.
+pub const OCEAN_COLORS: CrgbPalette16 = CrgbPalette16::new([
+    Crgb::new(0x19, 0x19, 0x70), // MidnightBlue
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x19, 0x19, 0x70), // MidnightBlue
+    Crgb::new(0x00, 0x00, 0x80), // Navy
+    Crgb::new(0x00, 0x00, 0x8B), // DarkBlue
+    Crgb::new(0x00, 0x00, 0xCD), // MediumBlue
+    Crgb::new(0x2E, 0x8B, 0x57), // SeaGreen
+    Crgb::new(0x00, 0x80, 0x80), // Teal
+    Crgb::new(0x5F, 0x9E, 0xA0), // CadetBlue
+    Crgb::new(0x00, 0x00, 0xFF), // Blue
+    Crgb::new(0x00, 0x8B, 0x8B), // DarkCyan
+    Crgb::new(0x64, 0x95, 0xED), // CornflowerBlue
+    Crgb::new(0x7F, 0xFF, 0xD4), // Aquamarine
+    Crgb::new(0x2E, 0x8B, 0x57), // SeaGreen
+    Crgb::new(0x00, 0xFF, 0xFF), // Aqua
+    Crgb::new(0x87, 0xCE, 0xFA), // LightSkyBlue
+]);
+
+/// Forest color palette: greens.
+pub const FOREST_COLORS: CrgbPalette16 = CrgbPalette16::new([
+    Crgb::new(0x00, 0x64, 0x00), // DarkGreen
+    Crgb::new(0x00, 0x64, 0x00), // DarkGreen
+    Crgb::new(0x55, 0x6B, 0x2F), // DarkOliveGreen
+    Crgb::new(0x00, 0x64, 0x00), // DarkGreen
+    Crgb::new(0x00, 0x80, 0x00), // Green
+    Crgb::new(0x22, 0x8B, 0x22), // ForestGreen
+    Crgb::new(0x6B, 0x8E, 0x23), // OliveDrab
+    Crgb::new(0x00, 0x80, 0x00), // Green
+    Crgb::new(0x2E, 0x8B, 0x57), // SeaGreen
+    Crgb::new(0x66, 0xCD, 0xAA), // MediumAquamarine
+    Crgb::new(0x32, 0xCD, 0x32), // LimeGreen
+    Crgb::new(0x9A, 0xCD, 0x32), // YellowGreen
+    Crgb::new(0x90, 0xEE, 0x90), // LightGreen
+    Crgb::new(0x7C, 0xFC, 0x00), // LawnGreen
+    Crgb::new(0x66, 0xCD, 0xAA), // MediumAquamarine
+    Crgb::new(0x22, 0x8B, 0x22), // ForestGreen
+]);
+
+/// HSV rainbow, as a fixed set of 16 RGB samples.
+pub const RAINBOW_COLORS: CrgbPalette16 = CrgbPalette16::new([
+    Crgb::new(0xFF, 0x00, 0x00),
+    Crgb::new(0xD5, 0x2A, 0x00),
+    Crgb::new(0xAB, 0x55, 0x00),
+    Crgb::new(0xAB, 0x7F, 0x00),
+    Crgb::new(0xAB, 0xAB, 0x00),
+    Crgb::new(0x56, 0xD5, 0x00),
+    Crgb::new(0x00, 0xFF, 0x00),
+    Crgb::new(0x00, 0xD5, 0x2A),
+    Crgb::new(0x00, 0xAB, 0x55),
+    Crgb::new(0x00, 0x56, 0xAA),
+    Crgb::new(0x00, 0x00, 0xFF),
+    Crgb::new(0x2A, 0x00, 0xD5),
+    Crgb::new(0x55, 0x00, 0xAB),
+    Crgb::new(0x7F, 0x00, 0x81),
+    Crgb::new(0xAB, 0x00, 0x55),
+    Crgb::new(0xD5, 0x00, 0x2B),
+]);
+
+/// [`RAINBOW_COLORS`] with alternating stripes of black.
+pub const RAINBOW_STRIPE_COLORS: CrgbPalette16 = CrgbPalette16::new([
+    Crgb::new(0xFF, 0x00, 0x00),
+    Crgb::new(0x00, 0x00, 0x00),
+    Crgb::new(0xAB, 0x55, 0x00),
+    Crgb::new(0x00, 0x00, 0x00),
+    Crgb::new(0xAB, 0xAB, 0x00),
+    Crgb::new(0x00, 0x00, 0x00),
+    Crgb::new(0x00, 0xFF, 0x00),
+    Crgb::new(0x00, 0x00, 0x00),
+    Crgb::new(0x00, 0xAB, 0x55),
+    Crgb::new(0x00, 0x00, 0x00),
+    Crgb::new(0x00, 0x00, 0xFF),
+    Crgb::new(0x00, 0x00, 0x00),
+    Crgb::new(0x55, 0x00, 0xAB),
+    Crgb::new(0x00, 0x00, 0x00),
+    Crgb::new(0xAB, 0x00, 0x55),
+    Crgb::new(0x00, 0x00, 0x00),
+]);
+
+/// Everything but the greens: good for club/party lighting on people, since
+/// green tends to make skin look unwell.
+pub const PARTY_COLORS: CrgbPalette16 = CrgbPalette16::new([
+    Crgb::new(0x55, 0x00, 0xAB),
+    Crgb::new(0x84, 0x00, 0x7C),
+    Crgb::new(0xB5, 0x00, 0x4B),
+    Crgb::new(0xE5, 0x00, 0x1B),
+    Crgb::new(0xE8, 0x17, 0x00),
+    Crgb::new(0xB8, 0x47, 0x00),
+    Crgb::new(0xAB, 0x77, 0x00),
+    Crgb::new(0xAB, 0xAB, 0x00),
+    Crgb::new(0xAB, 0x55, 0x00),
+    Crgb::new(0xDD, 0x22, 0x00),
+    Crgb::new(0xF2, 0x00, 0x0E),
+    Crgb::new(0xC2, 0x00, 0x3E),
+    Crgb::new(0x8F, 0x00, 0x71),
+    Crgb::new(0x5F, 0x00, 0xA1),
+    Crgb::new(0x2F, 0x00, 0xD0),
+    Crgb::new(0x00, 0x07, 0xF9),
+]);
+
+/// Approximate "black body radiation", the same ramp [`heat_color`](crate::heat_color)
+/// computes. Values above ~240 wrap back around toward the cold end, which
+/// looks wrong — FastLED's own advice is to stay within 0..=240 when
+/// indexing this one.
+pub const HEAT_COLORS: CrgbPalette16 = CrgbPalette16::new([
+    Crgb::new(0x00, 0x00, 0x00),
+    Crgb::new(0x33, 0x00, 0x00),
+    Crgb::new(0x66, 0x00, 0x00),
+    Crgb::new(0x99, 0x00, 0x00),
+    Crgb::new(0xCC, 0x00, 0x00),
+    Crgb::new(0xFF, 0x00, 0x00),
+    Crgb::new(0xFF, 0x33, 0x00),
+    Crgb::new(0xFF, 0x66, 0x00),
+    Crgb::new(0xFF, 0x99, 0x00),
+    Crgb::new(0xFF, 0xCC, 0x00),
+    Crgb::new(0xFF, 0xFF, 0x00),
+    Crgb::new(0xFF, 0xFF, 0x33),
+    Crgb::new(0xFF, 0xFF, 0x66),
+    Crgb::new(0xFF, 0xFF, 0x99),
+    Crgb::new(0xFF, 0xFF, 0xCC),
+    Crgb::new(0xFF, 0xFF, 0xFF),
+]);
+
+/// The raw [gradient-palette bytes](crate::gradient_palette) behind
+/// FastLED's `Rainbow_gp`: a standalone rainbow gradient for use alongside
+/// other gradient palettes, so a project doesn't need [`RAINBOW_COLORS`]
+/// *and* a gradient-format rainbow both defined by hand.
+pub const RAINBOW_GRADIENT_BYTES: &[u8] = &[
+    0, 255, 0, 0, // Red
+    32, 171, 85, 0, // Orange
+    64, 171, 171, 0, // Yellow
+    96, 0, 255, 0, // Green
+    128, 0, 171, 85, // Aqua
+    160, 0, 0, 255, // Blue
+    192, 85, 0, 171, // Purple
+    224, 171, 0, 85, // Pink
+    255, 255, 0, 0, // back to Red
+];
+
+/// [`RAINBOW_GRADIENT_BYTES`], parsed into a 16-entry palette.
+pub fn rainbow_gradient_palette16() -> CrgbPalette16 {
+    crgb_palette16_from_gradient(RAINBOW_GRADIENT_BYTES)
+}
