@@ -7,7 +7,11 @@
 //! domain is only 16.7M cases, which is entirely feasible in a
 //! release-mode test, and this is where subtle wrongness hides.
 
-use color8::{Chsv, Crgb, heat_color, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate};
+use color8::{
+    Chsv, ColorBlend, Crgb, CrgbPalette16, CrgbPalette32, CrgbPalette256, color_from_palette16,
+    color_from_palette32, color_from_palette256, heat_color, hsv2rgb_rainbow, hsv2rgb_spectrum,
+    rgb2hsv_approximate,
+};
 
 // ---------------------------------------------------------------------------
 // HSV <-> RGB conversions — exhaustive over the full 2^24 input domain
@@ -409,5 +413,136 @@ fn heat_color_matches_reference_exhaustive() {
         let got = tuple(heat_color(temperature));
         let want = fastled_ref::heat_color(temperature);
         assert_eq!(got, want, "heat_color(temperature={temperature})");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ColorFromPalette
+// ---------------------------------------------------------------------------
+
+/// Builds a palette whose entries are distinct, seed-perturbed colors, so
+/// that an off-by-one in entry indexing or channel mixups show up as a
+/// mismatch rather than being masked by a repeated or symmetric palette.
+fn make_palette16(seed: u8) -> [Crgb; 16] {
+    core::array::from_fn(|i| {
+        let i = i as u8;
+        Crgb::new(
+            i.wrapping_mul(17).wrapping_add(seed),
+            i.wrapping_mul(53).wrapping_add(seed).wrapping_add(1),
+            i.wrapping_mul(101).wrapping_add(seed).wrapping_add(2),
+        )
+    })
+}
+
+fn make_palette32(seed: u8) -> [Crgb; 32] {
+    core::array::from_fn(|i| {
+        let i = i as u8;
+        Crgb::new(
+            i.wrapping_mul(7).wrapping_add(seed),
+            i.wrapping_mul(31).wrapping_add(seed).wrapping_add(1),
+            i.wrapping_mul(61).wrapping_add(seed).wrapping_add(2),
+        )
+    })
+}
+
+fn make_palette256(seed: u8) -> [Crgb; 256] {
+    core::array::from_fn(|i| {
+        let i = i as u8;
+        Crgb::new(
+            i.wrapping_add(seed),
+            i.wrapping_mul(3).wrapping_add(seed).wrapping_add(1),
+            i.wrapping_mul(5).wrapping_add(seed).wrapping_add(2),
+        )
+    })
+}
+
+const BLEND_MODES: [ColorBlend; 3] = [
+    ColorBlend::NoBlend,
+    ColorBlend::LinearBlend,
+    ColorBlend::LinearBlendNoWrap,
+];
+
+fn blend_code(b: ColorBlend) -> i32 {
+    match b {
+        ColorBlend::NoBlend => 0,
+        ColorBlend::LinearBlend => 1,
+        ColorBlend::LinearBlendNoWrap => 2,
+    }
+}
+
+const SEEDS: [u8; 6] = [0, 1, 77, 128, 200, 255];
+const BRIGHTNESSES: [u8; 6] = [0, 1, 17, 128, 254, 255];
+
+#[test]
+fn color_from_palette16_matches_reference_exhaustive() {
+    for seed in SEEDS {
+        let entries = make_palette16(seed);
+        let pal = CrgbPalette16::new(entries);
+        let ref_pal = entries.map(tuple);
+
+        for blend in BLEND_MODES {
+            for index in 0..=255u8 {
+                for brightness in BRIGHTNESSES {
+                    let got = tuple(color_from_palette16(&pal, index, brightness, blend));
+                    let want = fastled_ref::color_from_palette16(
+                        &ref_pal,
+                        index,
+                        brightness,
+                        blend_code(blend),
+                    );
+                    assert_eq!(
+                        got, want,
+                        "color_from_palette16(seed={seed},index={index},brightness={brightness},blend={blend:?})"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn color_from_palette32_matches_reference_exhaustive() {
+    for seed in SEEDS {
+        let entries = make_palette32(seed);
+        let pal = CrgbPalette32::new(entries);
+        let ref_pal = entries.map(tuple);
+
+        for blend in BLEND_MODES {
+            for index in 0..=255u8 {
+                for brightness in BRIGHTNESSES {
+                    let got = tuple(color_from_palette32(&pal, index, brightness, blend));
+                    let want = fastled_ref::color_from_palette32(
+                        &ref_pal,
+                        index,
+                        brightness,
+                        blend_code(blend),
+                    );
+                    assert_eq!(
+                        got, want,
+                        "color_from_palette32(seed={seed},index={index},brightness={brightness},blend={blend:?})"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn color_from_palette256_matches_reference_exhaustive() {
+    for seed in SEEDS {
+        let entries = make_palette256(seed);
+        let pal = CrgbPalette256::new(entries);
+        let ref_pal = entries.map(tuple);
+
+        for index in 0..=255u8 {
+            for brightness in BRIGHTNESSES {
+                let got = tuple(color_from_palette256(&pal, index, brightness));
+                let want = fastled_ref::color_from_palette256(&ref_pal, index, brightness);
+                assert_eq!(
+                    got, want,
+                    "color_from_palette256(seed={seed},index={index},brightness={brightness})"
+                );
+            }
+        }
     }
 }

@@ -32,7 +32,8 @@ well-meaning future "fix" can't silently diverge.
 | `blend`/`nblend` (RGB + HSV directional, scalar + slice) | ✅ | exhaustive vs. C |
 | `fadeUsingColor`, `fade_video`/`fade_raw`/`nscale8_raw` | ✅ | exhaustive vs. C |
 | `HeatColor` | ✅ | exhaustive vs. C |
-| Palettes (CRGB/CHSV × 16/32/256) + `ColorFromPalette` | ⬜ | — |
+| Palettes (CRGB × 16/32/256) + `ColorFromPalette` | ✅ | exhaustive index/blend vs. C, sampled palette content |
+| CHSV palettes (16/32/256) | ⬜ | — |
 | Gradient-palette format, `fill_palette*`, presets | ⬜ | — |
 | `blur1d` | ⬜ | — |
 | `blur2d` | ⬜ | needs an `XY` mapping abstraction |

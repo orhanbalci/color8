@@ -198,6 +198,41 @@ mod ffi {
             out_b: *mut u8,
         );
         pub fn fl_heat_color(temperature: u8, out_r: *mut u8, out_g: *mut u8, out_b: *mut u8);
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn fl_color_from_palette16(
+            pr: *const u8,
+            pg: *const u8,
+            pb: *const u8,
+            index: u8,
+            brightness: u8,
+            blend: i32,
+            out_r: *mut u8,
+            out_g: *mut u8,
+            out_b: *mut u8,
+        );
+        #[allow(clippy::too_many_arguments)]
+        pub fn fl_color_from_palette32(
+            pr: *const u8,
+            pg: *const u8,
+            pb: *const u8,
+            index: u8,
+            brightness: u8,
+            blend: i32,
+            out_r: *mut u8,
+            out_g: *mut u8,
+            out_b: *mut u8,
+        );
+        pub fn fl_color_from_palette256(
+            pr: *const u8,
+            pg: *const u8,
+            pb: *const u8,
+            index: u8,
+            brightness: u8,
+            out_r: *mut u8,
+            out_g: *mut u8,
+            out_b: *mut u8,
+        );
     }
 }
 
@@ -360,6 +395,73 @@ pub fn heat_color(temperature: u8) -> Rgb {
     let (mut r, mut g, mut b) = (0u8, 0u8, 0u8);
     unsafe {
         ffi::fl_heat_color(temperature, &mut r, &mut g, &mut b);
+    }
+    (r, g, b)
+}
+
+/// `ColorFromPalette` against a 16-entry palette, using FastLED's C
+/// reference. `blend`: 0 = NOBLEND, 1 = LINEARBLEND, 2 = LINEARBLEND_NOWRAP.
+pub fn color_from_palette16(pal: &[Rgb; 16], index: u8, brightness: u8, blend: i32) -> Rgb {
+    let pr: Vec<u8> = pal.iter().map(|c| c.0).collect();
+    let pg: Vec<u8> = pal.iter().map(|c| c.1).collect();
+    let pb: Vec<u8> = pal.iter().map(|c| c.2).collect();
+    let (mut r, mut g, mut b) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_color_from_palette16(
+            pr.as_ptr(),
+            pg.as_ptr(),
+            pb.as_ptr(),
+            index,
+            brightness,
+            blend,
+            &mut r,
+            &mut g,
+            &mut b,
+        );
+    }
+    (r, g, b)
+}
+
+/// `ColorFromPalette` against a 32-entry palette. See [`color_from_palette16`].
+pub fn color_from_palette32(pal: &[Rgb; 32], index: u8, brightness: u8, blend: i32) -> Rgb {
+    let pr: Vec<u8> = pal.iter().map(|c| c.0).collect();
+    let pg: Vec<u8> = pal.iter().map(|c| c.1).collect();
+    let pb: Vec<u8> = pal.iter().map(|c| c.2).collect();
+    let (mut r, mut g, mut b) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_color_from_palette32(
+            pr.as_ptr(),
+            pg.as_ptr(),
+            pb.as_ptr(),
+            index,
+            brightness,
+            blend,
+            &mut r,
+            &mut g,
+            &mut b,
+        );
+    }
+    (r, g, b)
+}
+
+/// `ColorFromPalette` against a 256-entry palette (always exact — no
+/// interpolation between entries is possible when every index has one).
+pub fn color_from_palette256(pal: &[Rgb; 256], index: u8, brightness: u8) -> Rgb {
+    let pr: Vec<u8> = pal.iter().map(|c| c.0).collect();
+    let pg: Vec<u8> = pal.iter().map(|c| c.1).collect();
+    let pb: Vec<u8> = pal.iter().map(|c| c.2).collect();
+    let (mut r, mut g, mut b) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_color_from_palette256(
+            pr.as_ptr(),
+            pg.as_ptr(),
+            pb.as_ptr(),
+            index,
+            brightness,
+            &mut r,
+            &mut g,
+            &mut b,
+        );
     }
     (r, g, b)
 }

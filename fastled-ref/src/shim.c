@@ -5,7 +5,8 @@
 // Sources — all from the FastLED 3.6.0 tag:
 //   - src/hsv2rgb.cpp        (hsv2rgb_rainbow, hsv2rgb_raw_C, rgb2hsv_approximate)
 //   - src/pixeltypes.h       (CRGB operators)
-//   - src/colorutils.cpp     (fill_gradient_RGB, nblend, fadeUsingColor, HeatColor)
+//   - src/colorutils.cpp     (fill_gradient_RGB, nblend, fadeUsingColor, HeatColor,
+//                              ColorFromPalette)
 //   - src/lib8tion/scale8.h  (scale8, scale8_video — FASTLED_SCALE8_FIXED == 1)
 //   - src/lib8tion/math8.h   (qadd8, qsub8, qmul8, blend8 — BLEND8_C branch)
 //
@@ -681,4 +682,93 @@ void fl_heat_color(u8 temperature, u8 *out_r, u8 *out_g, u8 *out_b) {
         *out_g = 0;         // no green
         *out_b = 0;         // no blue
     }
+}
+
+// ---------------------------------------------------------------------------
+// ColorFromPalette (CRGB) — src/colorutils.cpp (FastLED 3.6.0)
+//
+// blend: 0 = NOBLEND, 1 = LINEARBLEND, 2 = LINEARBLEND_NOWRAP (this repo's
+// own numbering for the TBlendType parameter, not FastLED's enum values —
+// same convention as fl_nblend_hsv's `direction` parameter above).
+//
+// scale8_LEAVING_R1_DIRTY is transcribed as plain fl_scale8: on the
+// portable-C path they compute identical values, the AVR variant only skips
+// a register-zeroing instruction after the multiply (see the file header).
+// ---------------------------------------------------------------------------
+
+void fl_color_from_palette16(const u8 *pr, const u8 *pg, const u8 *pb, u8 index,
+                              u8 brightness, int blend, u8 *out_r, u8 *out_g, u8 *out_b) {
+    if (blend == 2) {
+        index = fl_scale8(index, 240);
+    }
+    u8 hi4 = (u8)(index >> 4);
+    u8 lo4 = (u8)(index & 0x0F);
+
+    u8 r1 = pr[hi4], g1 = pg[hi4], b1 = pb[hi4];
+
+    if (blend != 0 && lo4) {
+        u8 next = (hi4 == 15) ? 0 : (u8)(hi4 + 1);
+        u8 r2 = pr[next], g2 = pg[next], b2 = pb[next];
+        u8 f2 = (u8)(lo4 << 4);
+        u8 f1 = (u8)(255 - f2);
+        r1 = (u8)(fl_scale8(r1, f1) + fl_scale8(r2, f2));
+        g1 = (u8)(fl_scale8(g1, f1) + fl_scale8(g2, f2));
+        b1 = (u8)(fl_scale8(b1, f1) + fl_scale8(b2, f2));
+    }
+
+    if (brightness != 255) {
+        r1 = fl_scale8_video(r1, brightness);
+        g1 = fl_scale8_video(g1, brightness);
+        b1 = fl_scale8_video(b1, brightness);
+    }
+
+    *out_r = r1;
+    *out_g = g1;
+    *out_b = b1;
+}
+
+void fl_color_from_palette32(const u8 *pr, const u8 *pg, const u8 *pb, u8 index,
+                              u8 brightness, int blend, u8 *out_r, u8 *out_g, u8 *out_b) {
+    if (blend == 2) {
+        index = fl_scale8(index, 248);
+    }
+    u8 hi5 = (u8)(index >> 3);
+    u8 lo3 = (u8)(index & 0x07);
+
+    u8 r1 = pr[hi5], g1 = pg[hi5], b1 = pb[hi5];
+
+    if (blend != 0 && lo3) {
+        u8 next = (hi5 == 31) ? 0 : (u8)(hi5 + 1);
+        u8 r2 = pr[next], g2 = pg[next], b2 = pb[next];
+        u8 f2 = (u8)(lo3 << 5);
+        u8 f1 = (u8)(255 - f2);
+        r1 = (u8)(fl_scale8(r1, f1) + fl_scale8(r2, f2));
+        g1 = (u8)(fl_scale8(g1, f1) + fl_scale8(g2, f2));
+        b1 = (u8)(fl_scale8(b1, f1) + fl_scale8(b2, f2));
+    }
+
+    if (brightness != 255) {
+        r1 = fl_scale8_video(r1, brightness);
+        g1 = fl_scale8_video(g1, brightness);
+        b1 = fl_scale8_video(b1, brightness);
+    }
+
+    *out_r = r1;
+    *out_g = g1;
+    *out_b = b1;
+}
+
+void fl_color_from_palette256(const u8 *pr, const u8 *pg, const u8 *pb, u8 index,
+                               u8 brightness, u8 *out_r, u8 *out_g, u8 *out_b) {
+    u8 r1 = pr[index], g1 = pg[index], b1 = pb[index];
+
+    if (brightness != 255) {
+        r1 = fl_scale8_video(r1, brightness);
+        g1 = fl_scale8_video(g1, brightness);
+        b1 = fl_scale8_video(b1, brightness);
+    }
+
+    *out_r = r1;
+    *out_g = g1;
+    *out_b = b1;
 }

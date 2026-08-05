@@ -20,6 +20,7 @@ pub mod blend;
 pub mod fill;
 pub mod heat;
 pub mod hsv;
+pub mod palette;
 pub mod rgb;
 
 pub use blend::{
@@ -34,4 +35,8 @@ pub use fill::{
 };
 pub use heat::heat_color;
 pub use hsv::{Chsv, HsvHue, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate};
+pub use palette::{
+    ColorBlend, CrgbPalette16, CrgbPalette32, CrgbPalette256, color_from_palette16,
+    color_from_palette32, color_from_palette256,
+};
 pub use rgb::Crgb;
