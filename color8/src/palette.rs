@@ -323,3 +323,116 @@ pub fn color_from_palette256_hsv(pal: &ChsvPalette256, index: u8, brightness: u8
     }
     entry
 }
+
+/// A lookup a [`fill_palette`]/[`fill_palette_circular`] can drive — the
+/// generic `PALETTE` template parameter FastLED's own `fill_palette`
+/// functions take, made concrete per palette type. `Crgb` palettes ignore
+/// `blend` for the 256-entry size (matching [`color_from_palette256`],
+/// which has no blend parameter at all: every index already has its own
+/// entry, so there is nothing to blend).
+pub trait Palette {
+    /// The pixel type this palette produces.
+    type Entry: Copy;
+
+    /// Looks up one color, exactly as the matching `color_from_palette*`
+    /// free function would.
+    fn color_from_palette(&self, index: u8, brightness: u8, blend: ColorBlend) -> Self::Entry;
+}
+
+impl Palette for CrgbPalette16 {
+    type Entry = Crgb;
+    #[inline]
+    fn color_from_palette(&self, index: u8, brightness: u8, blend: ColorBlend) -> Crgb {
+        color_from_palette16(self, index, brightness, blend)
+    }
+}
+
+impl Palette for CrgbPalette32 {
+    type Entry = Crgb;
+    #[inline]
+    fn color_from_palette(&self, index: u8, brightness: u8, blend: ColorBlend) -> Crgb {
+        color_from_palette32(self, index, brightness, blend)
+    }
+}
+
+impl Palette for CrgbPalette256 {
+    type Entry = Crgb;
+    #[inline]
+    fn color_from_palette(&self, index: u8, brightness: u8, _blend: ColorBlend) -> Crgb {
+        color_from_palette256(self, index, brightness)
+    }
+}
+
+impl Palette for ChsvPalette16 {
+    type Entry = Chsv;
+    #[inline]
+    fn color_from_palette(&self, index: u8, brightness: u8, blend: ColorBlend) -> Chsv {
+        color_from_palette16_hsv(self, index, brightness, blend)
+    }
+}
+
+impl Palette for ChsvPalette32 {
+    type Entry = Chsv;
+    #[inline]
+    fn color_from_palette(&self, index: u8, brightness: u8, blend: ColorBlend) -> Chsv {
+        color_from_palette32_hsv(self, index, brightness, blend)
+    }
+}
+
+impl Palette for ChsvPalette256 {
+    type Entry = Chsv;
+    #[inline]
+    fn color_from_palette(&self, index: u8, brightness: u8, _blend: ColorBlend) -> Chsv {
+        color_from_palette256_hsv(self, index, brightness)
+    }
+}
+
+/// Fills `leds` with a run of palette entries: `leds[0]` is
+/// `pal[start_index]`, and the palette index advances by `inc_index`
+/// (wrapping) for every subsequent pixel.
+pub fn fill_palette<P: Palette>(
+    leds: &mut [P::Entry],
+    start_index: u8,
+    inc_index: u8,
+    pal: &P,
+    brightness: u8,
+    blend: ColorBlend,
+) {
+    let mut color_index = start_index;
+    for led in leds.iter_mut() {
+        *led = pal.color_from_palette(color_index, brightness, blend);
+        color_index = color_index.wrapping_add(inc_index);
+    }
+}
+
+/// Fills `leds` with the whole palette spread evenly across the slice, so
+/// the last pixel is followed by the first as if the palette wrapped
+/// around — unlike [`fill_palette`], the per-pixel index step is derived
+/// from `leds.len()` rather than given, so the palette always covers the
+/// full slice regardless of how many pixels there are. Set `reversed` to
+/// walk the palette backwards.
+pub fn fill_palette_circular<P: Palette>(
+    leds: &mut [P::Entry],
+    start_index: u8,
+    pal: &P,
+    brightness: u8,
+    blend: ColorBlend,
+    reversed: bool,
+) {
+    if leds.is_empty() {
+        return; // avoid div/0
+    }
+
+    // Palette-index change per pixel, kept at 8 extra bits of precision.
+    let color_change = 65535u16 / leds.len() as u16;
+    let mut color_index = (start_index as u16) << 8;
+
+    for led in leds.iter_mut() {
+        *led = pal.color_from_palette((color_index >> 8) as u8, brightness, blend);
+        if reversed {
+            color_index = color_index.wrapping_sub(color_change);
+        } else {
+            color_index = color_index.wrapping_add(color_change);
+        }
+    }
+}

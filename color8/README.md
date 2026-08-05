@@ -70,7 +70,8 @@ well-meaning future "fix" can't silently diverge.
 | `fadeUsingColor`, `fade_video`/`fade_raw`/`nscale8_raw` | ✅ | exhaustive vs. C |
 | `HeatColor` | ✅ | exhaustive vs. C |
 | Palettes (CRGB/CHSV × 16/32/256) + `ColorFromPalette` | ✅ | exhaustive index/brightness/blend vs. C, sampled palette content |
-| Gradient-palette format, `fill_palette*`, presets | ⬜ | — |
+| `fill_palette`, `fill_palette_circular` (CRGB/CHSV × 16/32/256) | ✅ | vs. C, same index arithmetic as `ColorFromPalette` |
+| Gradient-palette format, presets | ⬜ | — |
 | `blur1d` | ⬜ | — |
 | `blur2d` | ⬜ | needs an `XY` mapping abstraction |
 | gamma + color-correction constants | ⬜ | needs a `pow` strategy |

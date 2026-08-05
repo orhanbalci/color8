@@ -9,9 +9,10 @@
 
 use color8::{
     Chsv, ChsvPalette16, ChsvPalette32, ChsvPalette256, ColorBlend, Crgb, CrgbPalette16,
-    CrgbPalette32, CrgbPalette256, color_from_palette16, color_from_palette16_hsv,
+    CrgbPalette32, CrgbPalette256, Palette, color_from_palette16, color_from_palette16_hsv,
     color_from_palette32, color_from_palette32_hsv, color_from_palette256,
-    color_from_palette256_hsv, heat_color, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate,
+    color_from_palette256_hsv, fill_palette, fill_palette_circular, heat_color, hsv2rgb_rainbow,
+    hsv2rgb_spectrum, rgb2hsv_approximate,
 };
 
 // ---------------------------------------------------------------------------
@@ -689,5 +690,212 @@ fn color_from_palette256_hsv_matches_reference_exhaustive() {
                 );
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// fill_palette / fill_palette_circular
+//
+// These are thin index-stepping loops around `color_from_palette*`, which
+// is already validated exhaustively above. So rather than adding six more
+// C reference functions that would just re-wrap the same per-pixel lookup,
+// these tests drive the *same* C reference lookups with the exact index
+// arithmetic FastLED's `fill_palette`/`fill_palette_circular` templates
+// use, and check the Rust loop produces the identical sequence — this
+// differentially validates the stepping/wraparound logic itself, which is
+// the only thing these two functions add on top of an already-proven
+// primitive.
+// ---------------------------------------------------------------------------
+
+fn check_fill_palette<P: Palette>(
+    pal: &P,
+    ref_lookup: impl Fn(u8, u8, i32) -> (u8, u8, u8),
+    to_tuple: impl Fn(P::Entry) -> (u8, u8, u8),
+    label: &str,
+) where
+    P::Entry: Default + Copy,
+{
+    for &(start, inc) in &[(0u8, 1u8), (37, 5), (200, 17), (0, 0), (128, 255), (255, 1)] {
+        for blend in BLEND_MODES {
+            let mut leds = [P::Entry::default(); 40];
+            fill_palette(&mut leds, start, inc, pal, 255, blend);
+
+            let mut color_index = start;
+            for (i, &led) in leds.iter().enumerate() {
+                let want = ref_lookup(color_index, 255, blend_code(blend));
+                assert_eq!(
+                    to_tuple(led),
+                    want,
+                    "fill_palette({label}) start={start} inc={inc} i={i} blend={blend:?}"
+                );
+                color_index = color_index.wrapping_add(inc);
+            }
+        }
+    }
+}
+
+fn check_fill_palette_circular<P: Palette>(
+    pal: &P,
+    ref_lookup: impl Fn(u8, u8, i32) -> (u8, u8, u8),
+    to_tuple: impl Fn(P::Entry) -> (u8, u8, u8),
+    label: &str,
+) where
+    P::Entry: Default + Copy,
+{
+    for &n in &[1usize, 2, 3, 7, 16, 40, 100] {
+        for &start in &[0u8, 37, 200, 255] {
+            for reversed in [false, true] {
+                for blend in BLEND_MODES {
+                    let mut leds = vec![P::Entry::default(); n];
+                    fill_palette_circular(&mut leds, start, pal, 255, blend, reversed);
+
+                    let color_change = 65535u16 / n as u16;
+                    let mut color_index: u16 = (start as u16) << 8;
+                    for (i, &led) in leds.iter().enumerate() {
+                        let want = ref_lookup((color_index >> 8) as u8, 255, blend_code(blend));
+                        assert_eq!(
+                            to_tuple(led),
+                            want,
+                            "fill_palette_circular({label}) n={n} start={start} reversed={reversed} blend={blend:?} i={i}"
+                        );
+                        color_index = if reversed {
+                            color_index.wrapping_sub(color_change)
+                        } else {
+                            color_index.wrapping_add(color_change)
+                        };
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn fill_palette_matches_reference_across_sizes_and_color_spaces() {
+    for seed in SEEDS {
+        let entries16 = make_palette16(seed);
+        let pal16 = CrgbPalette16::new(entries16);
+        let ref16 = entries16.map(tuple);
+        check_fill_palette(
+            &pal16,
+            |i, b, bl| fastled_ref::color_from_palette16(&ref16, i, b, bl),
+            tuple,
+            "crgb16",
+        );
+
+        let entries32 = make_palette32(seed);
+        let pal32 = CrgbPalette32::new(entries32);
+        let ref32 = entries32.map(tuple);
+        check_fill_palette(
+            &pal32,
+            |i, b, bl| fastled_ref::color_from_palette32(&ref32, i, b, bl),
+            tuple,
+            "crgb32",
+        );
+
+        let entries256 = make_palette256(seed);
+        let pal256 = CrgbPalette256::new(entries256);
+        let ref256 = entries256.map(tuple);
+        check_fill_palette(
+            &pal256,
+            |i, b, _bl| fastled_ref::color_from_palette256(&ref256, i, b),
+            tuple,
+            "crgb256",
+        );
+
+        let hsv16 = make_hsv_palette16(seed);
+        let palh16 = ChsvPalette16::new(hsv16);
+        let refh16 = hsv16.map(hsv_tuple);
+        check_fill_palette(
+            &palh16,
+            |i, b, bl| fastled_ref::color_from_palette16_hsv(&refh16, i, b, bl),
+            hsv_tuple,
+            "chsv16",
+        );
+
+        let hsv32 = make_hsv_palette32(seed);
+        let palh32 = ChsvPalette32::new(hsv32);
+        let refh32 = hsv32.map(hsv_tuple);
+        check_fill_palette(
+            &palh32,
+            |i, b, bl| fastled_ref::color_from_palette32_hsv(&refh32, i, b, bl),
+            hsv_tuple,
+            "chsv32",
+        );
+
+        let hsv256 = make_hsv_palette256(seed);
+        let palh256 = ChsvPalette256::new(hsv256);
+        let refh256 = hsv256.map(hsv_tuple);
+        check_fill_palette(
+            &palh256,
+            |i, b, _bl| fastled_ref::color_from_palette256_hsv(&refh256, i, b),
+            hsv_tuple,
+            "chsv256",
+        );
+    }
+}
+
+#[test]
+fn fill_palette_circular_matches_reference_across_sizes_and_color_spaces() {
+    for seed in SEEDS {
+        let entries16 = make_palette16(seed);
+        let pal16 = CrgbPalette16::new(entries16);
+        let ref16 = entries16.map(tuple);
+        check_fill_palette_circular(
+            &pal16,
+            |i, b, bl| fastled_ref::color_from_palette16(&ref16, i, b, bl),
+            tuple,
+            "crgb16",
+        );
+
+        let entries32 = make_palette32(seed);
+        let pal32 = CrgbPalette32::new(entries32);
+        let ref32 = entries32.map(tuple);
+        check_fill_palette_circular(
+            &pal32,
+            |i, b, bl| fastled_ref::color_from_palette32(&ref32, i, b, bl),
+            tuple,
+            "crgb32",
+        );
+
+        let entries256 = make_palette256(seed);
+        let pal256 = CrgbPalette256::new(entries256);
+        let ref256 = entries256.map(tuple);
+        check_fill_palette_circular(
+            &pal256,
+            |i, b, _bl| fastled_ref::color_from_palette256(&ref256, i, b),
+            tuple,
+            "crgb256",
+        );
+
+        let hsv16 = make_hsv_palette16(seed);
+        let palh16 = ChsvPalette16::new(hsv16);
+        let refh16 = hsv16.map(hsv_tuple);
+        check_fill_palette_circular(
+            &palh16,
+            |i, b, bl| fastled_ref::color_from_palette16_hsv(&refh16, i, b, bl),
+            hsv_tuple,
+            "chsv16",
+        );
+
+        let hsv32 = make_hsv_palette32(seed);
+        let palh32 = ChsvPalette32::new(hsv32);
+        let refh32 = hsv32.map(hsv_tuple);
+        check_fill_palette_circular(
+            &palh32,
+            |i, b, bl| fastled_ref::color_from_palette32_hsv(&refh32, i, b, bl),
+            hsv_tuple,
+            "chsv32",
+        );
+
+        let hsv256 = make_hsv_palette256(seed);
+        let palh256 = ChsvPalette256::new(hsv256);
+        let refh256 = hsv256.map(hsv_tuple);
+        check_fill_palette_circular(
+            &palh256,
+            |i, b, _bl| fastled_ref::color_from_palette256_hsv(&refh256, i, b),
+            hsv_tuple,
+            "chsv256",
+        );
     }
 }
