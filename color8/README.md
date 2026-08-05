@@ -31,7 +31,7 @@ well-meaning future "fix" can't silently diverge.
 | `fill_gradient` HSV (2/3/4-stop, + direction) | ✅ | properties |
 | `blend`/`nblend` (RGB + HSV directional, scalar + slice) | ✅ | exhaustive vs. C |
 | `fadeUsingColor`, `fade_video`/`fade_raw`/`nscale8_raw` | ✅ | exhaustive vs. C |
-| `HeatColor` | ⬜ | — |
+| `HeatColor` | ✅ | exhaustive vs. C |
 | Palettes (CRGB/CHSV × 16/32/256) + `ColorFromPalette` | ⬜ | — |
 | Gradient-palette format, `fill_palette*`, presets | ⬜ | — |
 | `blur1d` | ⬜ | — |

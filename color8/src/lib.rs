@@ -18,6 +18,7 @@
 
 pub mod blend;
 pub mod fill;
+pub mod heat;
 pub mod hsv;
 pub mod rgb;
 
@@ -31,5 +32,6 @@ pub use fill::{
     fill_gradient_rgb3, fill_gradient_rgb4, fill_gradient3, fill_gradient4, fill_rainbow,
     fill_rainbow_circular, fill_solid, nscale8, nscale8_raw, nscale8_video,
 };
+pub use heat::heat_color;
 pub use hsv::{Chsv, HsvHue, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate};
 pub use rgb::Crgb;

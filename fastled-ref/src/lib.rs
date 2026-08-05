@@ -197,6 +197,7 @@ mod ffi {
             out_g: *mut u8,
             out_b: *mut u8,
         );
+        pub fn fl_heat_color(temperature: u8, out_r: *mut u8, out_g: *mut u8, out_b: *mut u8);
     }
 }
 
@@ -349,6 +350,16 @@ pub fn fade_using_color(c: Rgb, colormask: Rgb) -> Rgb {
             &mut g,
             &mut b,
         );
+    }
+    (r, g, b)
+}
+
+/// Converts a temperature byte to RGB using FastLED's `HeatColor` C
+/// reference.
+pub fn heat_color(temperature: u8) -> Rgb {
+    let (mut r, mut g, mut b) = (0u8, 0u8, 0u8);
+    unsafe {
+        ffi::fl_heat_color(temperature, &mut r, &mut g, &mut b);
     }
     (r, g, b)
 }

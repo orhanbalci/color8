@@ -7,7 +7,7 @@
 //! domain is only 16.7M cases, which is entirely feasible in a
 //! release-mode test, and this is where subtle wrongness hides.
 
-use color8::{Chsv, Crgb, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate};
+use color8::{Chsv, Crgb, heat_color, hsv2rgb_rainbow, hsv2rgb_spectrum, rgb2hsv_approximate};
 
 // ---------------------------------------------------------------------------
 // HSV <-> RGB conversions — exhaustive over the full 2^24 input domain
@@ -396,5 +396,18 @@ fn fill_gradient_rgb_matches_reference() {
                 assert_eq!(got, want, "fill_gradient_rgb(n={num_leds},{c1:?},{c2:?})");
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HeatColor
+// ---------------------------------------------------------------------------
+
+#[test]
+fn heat_color_matches_reference_exhaustive() {
+    for temperature in 0..=255u8 {
+        let got = tuple(heat_color(temperature));
+        let want = fastled_ref::heat_color(temperature);
+        assert_eq!(got, want, "heat_color(temperature={temperature})");
     }
 }

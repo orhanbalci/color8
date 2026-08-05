@@ -5,7 +5,7 @@
 // Sources — all from the FastLED 3.6.0 tag:
 //   - src/hsv2rgb.cpp        (hsv2rgb_rainbow, hsv2rgb_raw_C, rgb2hsv_approximate)
 //   - src/pixeltypes.h       (CRGB operators)
-//   - src/colorutils.cpp     (fill_gradient_RGB, nblend, fadeUsingColor)
+//   - src/colorutils.cpp     (fill_gradient_RGB, nblend, fadeUsingColor, HeatColor)
 //   - src/lib8tion/scale8.h  (scale8, scale8_video — FASTLED_SCALE8_FIXED == 1)
 //   - src/lib8tion/math8.h   (qadd8, qsub8, qmul8, blend8 — BLEND8_C branch)
 //
@@ -648,4 +648,37 @@ void fl_fade_using_color(u8 r, u8 g, u8 b, u8 fr, u8 fg, u8 fb, u8 *out_r, u8 *o
     *out_r = fl_scale8(r, fr);
     *out_g = fl_scale8(g, fg);
     *out_b = fl_scale8(b, fb);
+}
+
+// ---------------------------------------------------------------------------
+// HeatColor — src/colorutils.cpp (FastLED 3.6.0)
+// ---------------------------------------------------------------------------
+
+void fl_heat_color(u8 temperature, u8 *out_r, u8 *out_g, u8 *out_b) {
+    // Scale 'heat' down from 0-255 to 0-191, which can then be easily
+    // divided into three equal 'thirds' of 64 units each.
+    u8 t192 = fl_scale8_video(temperature, 191);
+
+    // calculate a value that ramps up from zero to 255 in each 'third' of
+    // the scale.
+    u8 heatramp = (u8)(t192 & 0x3F); // 0..63
+    heatramp = (u8)(heatramp << 2);  // scale up to 0..252
+
+    // now figure out which third of the spectrum we're in:
+    if (t192 & 0x80) {
+        // we're in the hottest third
+        *out_r = 255;    // full red
+        *out_g = 255;    // full green
+        *out_b = heatramp; // ramp up blue
+    } else if (t192 & 0x40) {
+        // we're in the middle third
+        *out_r = 255;     // full red
+        *out_g = heatramp; // ramp up green
+        *out_b = 0;        // no blue
+    } else {
+        // we're in the coolest third
+        *out_r = heatramp; // ramp up red
+        *out_g = 0;         // no green
+        *out_b = 0;         // no blue
+    }
 }
